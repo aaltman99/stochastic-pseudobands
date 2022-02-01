@@ -1,4 +1,4 @@
-# psedobands
+# pseudobands
 stochastic pseudobands (piggybacks on parabands)
 
 Constructs stochastic linear combinations of Bloch states to speed up GW calculation 
