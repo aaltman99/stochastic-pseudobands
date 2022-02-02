@@ -18,7 +18,7 @@ The **WFN** file output by these scripts *exponentially* reduces the number of b
 Given a set of input parameters (explained below) and input **WFN.h5** file containing many bands, *pseudobands.py* constructs a set of energy slices for both valence and conduction bands, and creates stochastic linear combinations of the bands in each energy slice. The stochastic pseudobands in a given slice are all degenerate, with energy equal to the mean energy of the slice. There are also a number of **protected bands**, which are simply copied from the input file, and not included in the slicing process. These should at least contain the bands for which the self energy is computed. The output is a **WFN_SPB.h5** file which has the same format as **WFN.h5** but contains the stochastic pseudobands, and a **phases.h5** file that contains the random coefficients used to construct the valence SPBs. Different random coefficients are used for different k-points. **WFN and WFNq are treated simultaneously, and must both be provided as input.**
 
 ### **Construction Of Slices**
-Slices are constructed according to the input parameters **efrac_v**. Each slice is given as the bands that fit in the energy interval 
+Slices are constructed according to the input parameters **efrac**. Each slice is given as the bands that fit in the energy interval 
 		**[E_first, E_last] = [E, E(1 + efrac)]**, 
 where 
 		**E_first**(interval [*i*]) = **E_last**(interval [*i - 1*]), 
@@ -30,6 +30,7 @@ and **E_first**(interval [*1*]) is set by **nv**/**nc**.
 
 ## **Output Files**
 - **WFN_SPB.h5**: WFN file containing stochastic pseudobands
+- **WFN_SPB_q.h5**: WFNq file containing stochastic pseudobands
 - **WFN_SPB.log**: Log file containing all input parameters, filenames, and errors, if any.
 - **phases.h5**: h5 file containing the random coefficients used to construct the *valence* SPBs. Used for constructing SPBs in for **WFNq**. 
 
@@ -52,7 +53,6 @@ and **E_first**(interval [*1*]) is set by **nv**/**nc**.
 - **efrac_c_fine (float < 1)** (optional): Accumulation window for conduction slices with energies <= max_freq, as a fraction of the energy of the band in each subspace. Intended for use with full-frequency in epsilon, otherwise leave unset. Default: **efrac_c**.
 - **max_freq (float)** (optional): Maximum energy (Ry) for usage of efrac_c_fine. Should be greater than the largest energy in the full-frequency calculation in epsilon. If **efrac_c_fine** is not set then this flag does nothing. Default == 1.0.
 - **copydirectly (bool)** (optional): Direct copying for protected bands. If False, then copying is done in chunks to limit memory usage. Set to False is you have a large number of protected bands. Default == True.
-- **fname_phases (str)** (optional): Phases.h5 file, containing random coefficients for SPB construction for valence states. Should be consistent with all other parameters. Intended for use with WFNq calculation. Default == None.
 - **verbosity (int 0-3)** (optional): Verbosity of output, written to the log file. Default == 0.
 
 
