@@ -61,7 +61,7 @@ python3 $PATH-TO-SCRIPT/pseudobands.py --fname_in WFN_in.h5 --fname_in_q WFNq.h5
 
 ### **Best Practices**
 - Create separate directory (e.g. 2.3-pseudobands) in which to run pseudobands. Link the **WFN.h5** and **WFNq.h5** 
-- Run on a compute node. See example.sh for an example run script
+- Run on a compute node. See *run.sh* for an example run script
 - If you run several calculations you will need to keep track of the **WFN_SPB.h5** output files. The SPB parameters are NOT logged in the WFN_SPB.h5 file. This is because it must maintain the standard **WFN** file format. **Set the parameters used as part of the WFN_SPB.h5 filename**.
 - Setting the output filename is not part of the code because you may want to run pseudobands multiple times to estimate the variance on the GW quantities. In this case you should append a run number to your output filename, like **WFN_SPB...(parameters)..._run1.h5**.
 - If running multiple calculations, use the workflow scripts in the *workflow* folder to stay organized and save time.
