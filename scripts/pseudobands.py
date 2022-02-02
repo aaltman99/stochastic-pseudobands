@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
 # Pseudobands!
-# It's recommended that you install the "progress" python script with:
-# "pip install --user progress"
-#
-# Felipe H da Jornada (2015)
 
 ### ARA: mod for nanoparticles, val and cond SPBs, phases.h5 (01/22)
 ### NPs: need 2 efracs (fine + coarse) for cond bands to properly capture frequency dependence in epsilon
@@ -12,6 +8,7 @@
 ### however, need to ensure there are still fewer total val SPBs, otherwise no savings
 
 ### TODO: automate selection of these parameters; optimize parameters 
+### TODO: fix copydirectly=False case in pseudobands
 
 
 ### current scheme only works for gapped materials (?)
@@ -94,6 +91,8 @@ def construct_blocks(el, n_copy, efrac, efrac_fine, max_freq):
             
     return np.asarray(blocks)
 
+
+# fix signs/relative alignment
 def fix_blocks(blocks, vc, ifmax, nb_orig):
     if vc == 'v':
         np.flip(blocks)
@@ -101,11 +100,12 @@ def fix_blocks(blocks, vc, ifmax, nb_orig):
         blocks += ifmax-1
         assert blocks[-1][-1] == 0
     
-    elif vc == 'c':
+    else:
         blocks += ifmax
         assert blocks[-1][-1] == nb_orig-1
-
         
+
+# bunch of sanity checks, block construction for WFN and WFNq simultaneously 
 def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=1, efrac_v=0.01, efrac_c=0.02, efrac_c_fine=None, max_freq=1.0, nspbps_v=1, nspbps_c=1, verbosity=0, **kwargs):
     
     nv = int(nv)
@@ -228,19 +228,8 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=1, efrac_v=0.0
     return blocks_v, blocks_c, ifmax
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-### nv and nc bands are copied. SPBS are constructed outside this range
+# nv and nc bands are copied. SPBS are constructed outside this range
 def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, nv=-1, nc=1, nspbps_v=1, nspbps_c=1, single_band=False, copydirectly=True, verbosity=0, fname_phases=None, **kwargs):
-    
     
     start = time.time()
     
@@ -279,7 +268,6 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
         phases_file = h5py.File('phases'+fname_out[0:-3]+'.h5', 'w')
     else:
         phases_file = h5py.File(fname_phases, 'r')
-    
     
    
     f_out.copy(f_in['mf_header'], 'mf_header')
@@ -474,7 +462,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
     f_in.close()
     
     end = time.time()
-    logger.info(f'Done! Time taken: {round(end-start,2)} sec')
+    logger.info(f'Done! Time taken: {round(end-start,1)} sec \n \n')
 
 
 
