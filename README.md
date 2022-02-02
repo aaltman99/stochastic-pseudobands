@@ -1,5 +1,5 @@
 # pseudobands
-stochastic pseudobands (piggybacks on parabands)
+stochastic pseudobands (piggybacks on parabands/nscf)
 
 Constructs stochastic linear combinations of Bloch states to speed up GW calculation 
 (GW reduced to O(N^2) from O(N^4))
