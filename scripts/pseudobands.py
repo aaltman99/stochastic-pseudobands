@@ -23,11 +23,33 @@
 from __future__ import print_function
 import h5py
 import numpy as np
+import scipy as sp
+from scipy import signal
 import logging 
 from inspect import currentframe, getframeinfo
 import time
 import sys
 
+
+# valence bands aggregate in energy steps, almost in a piecewise-constant fashion. Slices should respect the positions of these steps
+def get_steps(el):
+    
+    grad = np.gradient(el)
+    kernel_size = [len(el)//300 if len(el)>300 else 2][0]
+    kernel = np.ones(kernel_size)
+    grad_convolved = np.convolve(grad, kernel, mode='same')
+    
+    var = np.var(grad_convolved)
+    skew = sp.stats.skew(grad_convolved)
+    
+    if skew <= var: # no large steps found
+        return [-1, len(el)]
+    
+    thresh = 0.1 
+    
+    edges = signal.find_peaks(grad_convolved, height=thresh*np.max(grad_convolved), distance=3*kernel_size)
+    
+    return list(edges[0])
 
 
 def construct_blocks(el, n_copy, efrac, efrac_fine, max_freq):
@@ -38,6 +60,8 @@ def construct_blocks(el, n_copy, efrac, efrac_fine, max_freq):
     blocks = []
     nb_out = n_copy
     first_idx = n_copy
+    
+    edges = get_steps(el)
     
     while True:
         first_en = el[first_idx]
@@ -52,6 +76,11 @@ def construct_blocks(el, n_copy, efrac, efrac_fine, max_freq):
 
         try:
             last_idx = list(np.where(el > last_en))[0][0]
+            
+            if last_idx >= edges[0]:
+                last_idx = edges[0]
+                edges.pop(0)
+            
             blocks.append([first_idx, last_idx - 1])
 
             nb_out += 1
