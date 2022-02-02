@@ -31,6 +31,9 @@ import sys
 # valence bands aggregate in energy steps, almost in a piecewise-constant fashion. Slices should respect the positions of these steps
 def get_steps(el):
     
+    ### TODO: better to grad then convolve or convolve then grad?
+    ### currently grad then convolve
+    
     grad = np.gradient(el)
     kernel_size = [len(el)//300 if len(el)>300 else 2][0]
     kernel = np.ones(kernel_size)
