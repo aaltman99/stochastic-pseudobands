@@ -15,60 +15,33 @@
 ### current scheme only works for not-too-large spin-orbit splitting
 
 
-
-
 from __future__ import print_function
 import h5py
 import numpy as np
-import scipy as sp
-from scipy import signal
 import logging 
 from inspect import currentframe, getframeinfo
 import time
 import sys
 
 
-# valence bands aggregate in energy steps, almost in a piecewise-constant fashion. Slices should respect the positions of these steps
-def get_steps(el):
+def construct_blocks(el, n_copy, efrac, uniform_width, max_freq):
     
-    ### TODO: better to grad then convolve or convolve then grad?
-    ### currently grad then convolve
-    
-    grad = np.gradient(el)
-    kernel_size = [len(el)//300 if len(el)>300 else 2][0]
-    kernel = np.ones(kernel_size)
-    grad_convolved = np.convolve(grad, kernel, mode='same')
-    
-    var = np.var(grad_convolved)
-    skew = sp.stats.skew(grad_convolved)
-    
-    if skew <= var: # no large steps found
-        return [-1, len(el)]
-    
-    thresh = 0.1 
-    
-    edges = signal.find_peaks(grad_convolved, height=thresh*np.max(grad_convolved), distance=3*kernel_size)
-    
-    return list(edges[0])
-
-
-def construct_blocks(el, n_copy, efrac, efrac_fine, max_freq):
-    
-    if efrac_fine is None:
-        efrac_fine = efrac
+    if uniform_width is None:
+        assert max_freq == 0
         
     blocks = []
     nb_out = n_copy
     first_idx = n_copy
     
-    edges = get_steps(el)
-    
+    start_exp = 0
+                
     while True:
         first_en = el[first_idx]
         assert first_en > 0
         
         if first_en <= max_freq:
-            delta_en = first_en * efrac_fine
+            delta_en = uniform_width ### uniform slices until max freq to avoid polarizability errors
+            start_exp += 1
         else:
             delta_en = first_en * efrac
             
@@ -76,10 +49,6 @@ def construct_blocks(el, n_copy, efrac, efrac_fine, max_freq):
 
         try:
             last_idx = list(np.where(el > last_en))[0][0]
-            
-            if last_idx >= edges[0]:
-                last_idx = edges[0]
-                edges.pop(0)
             
             blocks.append([first_idx, last_idx - 1])
 
@@ -92,7 +61,7 @@ def construct_blocks(el, n_copy, efrac, efrac_fine, max_freq):
             nb_out += 1
             break
             
-    return np.asarray(blocks)
+    return np.asarray(blocks), start_exp
 
 
 # fix signs/relative alignment
@@ -103,24 +72,25 @@ def fix_blocks(blocks, vc, ifmax, nb_orig):
         blocks += ifmax-1
         assert blocks[-1][-1] == 0
     
-    else:
+    elif vc == 'c':
         blocks += ifmax
         assert blocks[-1][-1] == nb_orig-1
-        
 
+        
 # bunch of sanity checks, block construction for WFN and WFNq simultaneously 
-def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=1, efrac_v=0.01, efrac_c=0.02, efrac_c_fine=None, max_freq=1.0, nspbps_v=1, nspbps_c=1, verbosity=0, **kwargs):
+def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=1, efrac_v=0.01, efrac_c=0.02, uniform_width=None, max_freq=0., nspbps_v=1, nspbps_c=1, verbosity=0, **kwargs):
     
     nv = int(nv)
     nc = int(nc)
     
-    if efrac_c_fine is None:
-        efrac_c_fine = efrac_c
+    if uniform_width is None:
+        assert max_freq == 0.
+    else:
+        assert uniform_width >= 0
     
     assert nv >= -1
     assert nc >= 0
     assert efrac_v > 0
-    assert efrac_c_fine > 0
     assert efrac_c > 0
     
     
@@ -194,17 +164,22 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=1, efrac_v=0.0
     # hopefully there are no states at 0 energy... add assert statement
 
     
-    blocks_v = construct_blocks(el_all_v, nv, efrac_v, None, max_freq)
-    blocks_c = construct_blocks(el_c, nc, efrac_c, efrac_c_fine, max_freq)
+    blocks_v, start_exp_v = construct_blocks(el_all_v, nv, efrac_v, None, 0.)
+    blocks_c, start_exp_c = construct_blocks(el_c, nc, efrac_c, uniform_width, max_freq)
     
     fix_blocks(blocks_v, 'v', ifmax, nb_orig)
     fix_blocks(blocks_c, 'c', ifmax, nb_orig)
     
-    
+    blocks_en_v = [[np.mean(en_orig[...,b[0]]), np.mean(en_orig[...,b[1]])] for b in blocks_v] # mean over kpoints, spin (want scalar)
+    blocks_en_c = [[np.mean(en_orig[...,b[0]]), np.mean(en_orig[...,b[1]])] for b in blocks_c]
     
     if verbosity > 0:
+        logger.info(f'index of first exponential valence slice: {start_exp_v}')
+        logger.info(f'index of first exponential conduction slice: {start_exp_c}')
         logger.info(f'valence slices: {blocks_v}')
         logger.info(f'conduction slices: {blocks_c}')
+        logger.info(f'valence slice energies (Ry) (relative to E_Fermi): {blocks_en_v}')
+        logger.info(f'conduction slice energies (Ry) (relative to E_Fermi): {blocks_en_c}')
         
     f_in.close()
     f_in_q.close()
@@ -271,6 +246,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
         phases_file = h5py.File('phases'+fname_out[0:-3]+'.h5', 'w')
     else:
         phases_file = h5py.File(fname_phases, 'r')
+    
     
    
     f_out.copy(f_in['mf_header'], 'mf_header')
@@ -396,7 +372,6 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
                         logger.info(f'coeffs.shape for SPB {ib}: {coeffs.shape}')
                     
                     # Make sure we do a complex mult., and then view result as float
-                    
                     spb = np.concatenate([np.tensordot(coeffs[:,:,cum_ngk[k]:cum_ngk[k+1]], phases[:,k], axes=(0, 0)) for k in range(nk)], axis=-2)
                     
                     f_out['wfns/coeffs'][ib, :, :] = spb.view(np.float64)
@@ -449,7 +424,6 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
                         logger.info(f'coeffs.shape for SPB {ib}: {coeffs.shape}')
                 
                 # Make sure we do a complex mult., and then view result as float
-                
                 spb = np.concatenate([np.tensordot(coeffs[:,:,cum_ngk[k]:cum_ngk[k+1]], phases[:,k], axes=(0, 0)) for k in range(nk)], axis=-2)
                 print(spb.shape)
 
@@ -465,7 +439,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
     f_in.close()
     
     end = time.time()
-    logger.info(f'Done! Time taken: {round(end-start,1)} sec \n \n')
+    logger.info(f'Done! Time taken: {round(end-start,2)} sec')
 
 
 
@@ -489,13 +463,12 @@ if __name__ == "__main__":
     parser.add_argument('--efrac_v', type=float, default=0.01,
                         help=('Accumulation window for valence slices, as a fraction of the energy of the '
                               'band in each subspace.'))
-    parser.add_argument('--efrac_c_fine', type=float, default=None,
-                        help=('Accumulation window for conduction slices with energies <= max_freq, as a fraction of the energy of the '
-                              'band in each subspace.'))
+    parser.add_argument('--uniform_width', type=float, default=None,
+                        help=('Constant width accumulation window (Ry) for conduction slices with energies <= max_freq.'))
     parser.add_argument('--efrac_c', type=float, default=0.01,
                         help=('Accumulation window for conduction slices with energies > max_freq, as a fraction of the energy of the '
                               'band in each subspace.'))
-    parser.add_argument('--max_freq', type=float, default=1.0,
+    parser.add_argument('--max_freq', type=float, default=0.0,
                         help=('Maximum energy (Ry) before coarse slicing kicks in for conduction SPBs. This should be at least the maximum frequency for which you plan to evaluate epsilon.'))
     parser.add_argument('--nspbps_v', type=int, default=1,
                         help=('Number of stochastic pseudobands per valence slice'))
