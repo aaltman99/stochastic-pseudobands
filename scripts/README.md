@@ -50,14 +50,14 @@ and **E_first**(interval [*1*]) is set by **nv**/**nc**.
 - **nspbps_c (int >= 1)**: Number of stochastic pseudobands constructed per conduction slice. Default == 1.
 
 ***Optional***
-- **efrac_c_fine (float < 1)** (optional): Accumulation window for conduction slices with energies <= max_freq, as a fraction of the energy of the band in each subspace. Intended for use with full-frequency in epsilon, otherwise leave unset. Default: **efrac_c**.
-- **max_freq (float)** (optional): Maximum energy (Ry) for usage of efrac_c_fine. Should be greater than the largest energy in the full-frequency calculation in epsilon. If **efrac_c_fine** is not set then this flag does nothing. Default == 1.0.
-- **copydirectly (bool)** (optional): Direct copying for protected bands. If False, then copying is done in chunks to limit memory usage. Set to False is you have a large number of protected bands. Default == True.
+- **uniform_width (float)** (optional): Width of constant slices (Ry) taken for bands with energy <= **max_freq**. *Must be set if using **max_freq**!!* Default: None.
+- **max_freq (float)** (optional): Maximum energy (Ry) for usage of **uniform_width**. Should be greater than the largest energy in the full-frequency calculation in epsilon. Default == 0.0.
+- **copydirectly (bool)** (optional): Direct copying for protected bands. If False, then copying is done in chunks to limit memory usage. Set to False is you have a large number (> ~1000) of protected bands. Default == True.
 - **verbosity (int 0-3)** (optional): Verbosity of output, written to the log file. Default == 0.
 
 
 ### **Example Run Command**
-python3 $PATH-TO-SCRIPT/pseudobands.py --fname_in WFN_in.h5 --fname_in_q WFNq.h5 --fname_out WFN_SPB.h5 --fname_out_q WFN_SPB_q.h5 --nv 50 --nc 50 --efrac_v 0.01 --efrac_c_fine 0.01 --efrac_c 0.02 --max_freq 1.0 --nspbps_v 2 --nspbps_c 1
+python3 $PATH-TO-SCRIPT/pseudobands.py --fname_in WFN_in.h5 --fname_in_q WFNq.h5 --fname_out WFN_SPB.h5 --fname_out_q WFN_SPB_q.h5 --nv 50 --nc 50 --efrac_v 0.01 --uniform_width 0.00734 --efrac_c 0.02 --max_freq 1.0 --nspbps_v 1 --nspbps_c 1 --verbosity 1
 
 ### **Best Practices**
 - Create separate directory (e.g. 2.3-pseudobands) in which to run pseudobands. Link the **WFN.h5** and **WFNq.h5** 
