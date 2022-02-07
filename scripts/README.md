@@ -52,7 +52,7 @@ and **E_first**(interval [*1*]) is set by **nv**/**nc**.
 - **nspbps_c (int >= 1)**: Number of stochastic pseudobands constructed per conduction slice. Default == 1.
 
 ***Optional***
-- **uniform_width (float)** (optional): Width of constant slices (Ry) taken for bands with energy <= **max_freq**. *Must be set if using **max_freq**!!* Default == None.
+- **uniform_width (float)** (optional): Width of constant slices (Ry) taken for bands with energy <= **max_freq**. *Must be set if **max_freq**>0!!* Default == None.
 - **max_freq (float)** (optional): Maximum energy (Ry) for usage of **uniform_width**. Should be greater than the largest energy in the full-frequency calculation in epsilon. Default == 0.0.
 - **copydirectly (bool)** (optional): Direct copying for protected bands. If False, then copying is done in chunks to limit memory usage. Set to False is you have a large number (> ~1000) of protected bands. Default == True.
 - **verbosity (int 0-3)** (optional): Verbosity of output, written to the log file. Default == 0.
