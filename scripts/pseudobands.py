@@ -2,14 +2,8 @@
 
 # Pseudobands!
 
-### ARA: mod for nanoparticles, val and cond SPBs, phases.h5 (01/22)
-### NPs: need 2 efracs (fine + coarse) for cond bands to properly capture frequency dependence in epsilon
-### val SPB: need higher nspbps, otherwise error from exchange self energy is large
-### however, need to ensure there are still fewer total val SPBs, otherwise no savings
-
-### TODO: automate selection of these parameters; optimize parameters 
-### TODO: fix copydirectly=False case in pseudobands
-
+### TODO: automate selection of these parameters; optimize parameters (exponential is optimal, actually (02/07/22))
+### TODO: fix copydirectly=False case in pseudobands()
 
 ### current scheme only works for gapped materials (?)
 ### current scheme only works for not-too-large spin-orbit splitting
@@ -49,7 +43,7 @@ def construct_blocks(el, n_copy, efrac, uniform_width, max_freq):
 
         try:
             last_idx = list(np.where(el > last_en))[0][0]
-            
+    
             blocks.append([first_idx, last_idx - 1])
 
             nb_out += 1
@@ -127,8 +121,6 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=1, efrac_v=0.0
     
     logger.info(f'ifmax = {ifmax}')
     
-    if nv == -1:
-        nv = ifmax
     
     lastcopy_en_v = en_orig[:,:,ifmax-1-nv]
     lastcopy_en_c = en_orig[:,:,ifmax-1+nc]
@@ -163,50 +155,60 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=1, efrac_v=0.0
     el_c = np.mean(en_orig[0,:,ifmax:None], axis=0)    
     # hopefully there are no states at 0 energy... add assert statement
 
-    
-    blocks_v, start_exp_v = construct_blocks(el_all_v, nv, efrac_v, None, 0.)
+    if nv != -1:
+        blocks_v, start_exp_v = construct_blocks(el_all_v, nv, efrac_v, None, 0.)
+        fix_blocks(blocks_v, 'v', ifmax, nb_orig)
+        blocks_en_v = [[np.mean(en_orig[...,b[0]]), np.mean(en_orig[...,b[1]])] for b in blocks_v] # mean over kpoints, spin (want scalar)
+        
+        if verbosity > 0:
+            logger.info(f'index of first exponential valence slice: {start_exp_v}')
+            logger.info(f'valence slices: {blocks_v}')
+            logger.info(f'valence slice energies (Ry) (relative to E_Fermi): {blocks_en_v}')
+            
+        nslices_v = len(blocks_v)
+        nspb_v = nslices_v * nspbps_v
+        nb_out_v = nv + nspb_v
+        
+        try:
+            assert nb_out_v <= ifmax
+        except AssertionError as err:
+            logger.error('More total valence states (copied + SPBs) than original valence bands ==> no computational savings in GW steps. Choose smaller nv, nspbps_v, or larger efrac_v')
+            raise err
+            
+        assert len(blocks_v) == nslices_v
+        
+        
+    else:
+        logger.info('No valence pseudobands')
+            
+        
     blocks_c, start_exp_c = construct_blocks(el_c, nc, efrac_c, uniform_width, max_freq)
-    
-    fix_blocks(blocks_v, 'v', ifmax, nb_orig)
     fix_blocks(blocks_c, 'c', ifmax, nb_orig)
-    
-    blocks_en_v = [[np.mean(en_orig[...,b[0]]), np.mean(en_orig[...,b[1]])] for b in blocks_v] # mean over kpoints, spin (want scalar)
-    blocks_en_c = [[np.mean(en_orig[...,b[0]]), np.mean(en_orig[...,b[1]])] for b in blocks_c]
+    blocks_en_c = [[np.mean(en_orig[...,b[0]]), np.mean(en_orig[...,b[1]])] for b in blocks_c] # mean over kpoints, spin (want scalar)
     
     if verbosity > 0:
-        logger.info(f'index of first exponential valence slice: {start_exp_v}')
         logger.info(f'index of first exponential conduction slice: {start_exp_c}')
-        logger.info(f'valence slices: {blocks_v}')
         logger.info(f'conduction slices: {blocks_c}')
-        logger.info(f'valence slice energies (Ry) (relative to E_Fermi): {blocks_en_v}')
         logger.info(f'conduction slice energies (Ry) (relative to E_Fermi): {blocks_en_c}')
         
     f_in.close()
     f_in_q.close()
     
     nslices_c = len(blocks_c)
-    nslices_v = len(blocks_v)
     nspb_c = nslices_c * nspbps_c
-    nspb_v = nslices_v * nspbps_v
     nb_out_c = nc + nspb_c
-    nb_out_v = nv + nspb_v
-    
-    try:
-        assert nb_out_v <= ifmax
-    except AssertionError as err:
-        logger.error('More total valence states (copied + SPBs) than original valence bands ==> no computational savings in GW steps. Choose smaller nv, nspbps_v, or larger efrac_v')
-        raise err
-    
+
     assert len(blocks_c) == nslices_c
-    assert len(blocks_v) == nslices_v
+   
+    if nv != -1:
+        logger.info(f'''nslices_c = {nslices_c}\n nslices_v = {nslices_v}\n nspb_c_total = {nspb_c}\n nspb_v_total = {nspb_v}\n nb_out_c_total = {nb_out_c}\n nb_out_v_total = {nb_out_v}\n''') 
+        return blocks_v, blocks_c, ifmax
+    else:
+        logger.info(f'''nslices_c = {nslices_c}\n nspb_c_total = {nspb_c}\n nb_out_c_total = {nb_out_c}\n''') 
+        return None, blocks_c, ifmax 
     
-    logger.info(f'''nslices_c = {nslices_c}\n nslices_v = {nslices_v}\n nspb_c_total = {nspb_c}\n nspb_v_total = {nspb_v}\n nb_out_c_total = {nb_out_c}\n nb_out_v_total = {nb_out_v}\n''') 
-    
-    
-    return blocks_v, blocks_c, ifmax
-    
-    
-# nv and nc bands are copied. SPBS are constructed outside this range
+
+### nv and nc bands are copied. SPBS are constructed outside this range
 def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, nv=-1, nc=1, nspbps_v=1, nspbps_c=1, single_band=False, copydirectly=True, verbosity=0, fname_phases=None, **kwargs):
     
     start = time.time()
@@ -217,13 +219,17 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
     assert nv >= -1
     assert nc >= 0
     
+    if nv != -1:
+        nslices_v = len(blocks_v)
+        nspb_v = nslices_v * nspbps_v
+        nb_out_v = nv + nspb_v
+    else:
+        nslices_v = 0
+        nb_out_v = ifmax
+        
     nslices_c = len(blocks_c)
-    nslices_v = len(blocks_v)
     nspb_c = nslices_c * nspbps_c
-    nspb_v = nslices_v * nspbps_v
     nb_out_c = nc + nspb_c
-    nb_out_v = nv + nspb_v
-    
     
     if single_band:
         nspbps_v = 1
@@ -247,8 +253,6 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
     else:
         phases_file = h5py.File(fname_phases, 'r')
     
-    
-   
     f_out.copy(f_in['mf_header'], 'mf_header')
     f_out.create_group('wfns')
     f_out.copy(f_in['wfns/gvecs'], 'wfns/gvecs')
@@ -272,8 +276,10 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
     resize(f_out, 'mf_header/kpoints/occ')
     resize(f_out, 'mf_header/kpoints/el')
     
-    
-    logger.info('Copying {} protected bands'.format(nv+nc))
+    if nv != -1:
+        logger.info('Copying {} protected bands'.format(nv+nc))
+    else:
+        logger.info('Copying {} protected bands'.format(ifmax+nc))
     shape = list(f_in['wfns/coeffs'].shape)
     shape[0] = nb_out_v + nb_out_c
     f_out.create_dataset('wfns/coeffs', shape, 'd')
@@ -282,13 +288,17 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
         shape_phases = (ifmax-nv, nk, nspbps_v, 2,)
         phases_file.create_dataset('phases/coeffs', shape_phases, 'd')
    
-    
+
     if copydirectly:
         # FHJ: this can take quite a while for some systems..
         logger.warning('copydirectly=True. Copying all protected bands at once, can be slow if copying >1000 bands')
-        f_out['wfns/coeffs'][nb_out_v-nv:nb_out_v+nc, :, :] = f_in['wfns/coeffs'][ifmax-nv:ifmax+nc, :, :]
-        f_out['mf_header/kpoints/el'][:,:,nb_out_v-nv:nb_out_v+nc] = f_in['mf_header/kpoints/el'][:,:,ifmax-nv:ifmax+nc]
-        
+        # logger.info(f'nb_out_v-nv:nb_out_v+nc: {(nb_out_v-nv, nb_out_v+nc)} \n ifmax-nv:ifmax+nc: {(ifmax-nv, ifmax+nc)}')
+        if nv != -1:
+            f_out['wfns/coeffs'][nb_out_v-nv:nb_out_v+nc, :, :] = f_in['wfns/coeffs'][ifmax-nv:ifmax+nc, :, :]
+            f_out['mf_header/kpoints/el'][:,:,nb_out_v-nv:nb_out_v+nc] = f_in['mf_header/kpoints/el'][:,:,ifmax-nv:ifmax+nc]
+        else:
+            f_out['wfns/coeffs'][0:nb_out_v+nc, :, :] = f_in['wfns/coeffs'][0:ifmax+nc, :, :]
+            f_out['mf_header/kpoints/el'][:,:,0:nb_out_v+nc] = f_in['mf_header/kpoints/el'][:,:,0:ifmax+nc]
         
     else: ### FIXME: indices not correct (if copydirectly indices are correct though); phases_file not included yet
         nbs_block = 1000
@@ -311,74 +321,75 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
             bar.finish()
     
     
-    logger.info('Creating {} valence pseudobands'.format(nspb_v))
-    ib = nb_out_v-nv-1
+    if nv != -1: 
+        logger.info('Creating {} valence pseudobands'.format(nspb_v))
+        ib = nb_out_v-nv-1
 
-    for b in blocks_v:
-        if verbosity > 1:
-            logger.info(f'slice_index, slice: {ib, b}')
+        for b in blocks_v:
+            if verbosity > 1:
+                logger.info(f'slice_index, slice: {ib, b}')
 
-        if single_band:
-            band_avg = b[0] + (b[1] - b[0]) // 2
-            f_out['wfns/coeffs'][ib, :, :] = (f_in['wfns/coeffs'][band_avg, :, :]
-                                              * np.sqrt(float(b[1] - b[0] + 1)))
-            f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, band_avg].mean(axis=-1)
-            ib -= 1
-        elif nspbps_v == 1:
-            if b[0] == 1:
-                f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][0, :, :].sum(axis=0)
-                f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, 0].mean(axis=-1)
-            elif b[0] == 0:
-                continue
-            else:
-                f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][b[1]:b[0]+1, :, :].sum(axis=0)
-                f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, b[1]:b[0]+1].mean(axis=-1)
-                
-            ib -= 1
-            
-        else: # nspbps > 1
-            if b[0] == 0:
-                continue
-            
-            elif b[0] == b[1] and verbosity > 2:
-                logger.warning(f'Current slice {b} has the same start and end bands. Using nspbps > 1 will introduce unnecessary error. Hack the code to automatically deal with this, or ignore it, but using valence SPBs in sigma may be an extremely poor approximation due to the exchange term.')
-                # coeffs = f_in['wfns/coeffs'][b[0], :, :, :]
-                # el = f_in['mf_header/kpoints/el'][:, :, b[0]]
-                # ib -= 1
-                
-                ### WARNING: uncommenting ^^^ does not work, since the h5 dataset is a fixed size.
-                ### (purpose is to just copy the band instead of putting extra SPBs)
-                
-            else:
-                coeffs = f_in['wfns/coeffs'][b[1]:b[0]+1, :, :, :].view(np.complex128)
-                el = f_in['mf_header/kpoints/el'][:, :, b[1]:b[0]+1].mean(axis=-1)
-                    
-                num_bands_in = b[0] - b[1] + 1
-                
-                for ispb in range(nspbps_v):
-                    if fname_phases is None:
-                        # Phases are normalized to the DOS / sqrt(number_pseudobands)
-                        phases = np.random.random((num_bands_in, nk,))
-                        phases = np.exp(2 * np.pi * 1.0j * phases) / np.sqrt(float(nspbps_v))
+            if single_band:
+                band_avg = b[0] + (b[1] - b[0]) // 2
+                f_out['wfns/coeffs'][ib, :, :] = (f_in['wfns/coeffs'][band_avg, :, :]
+                                                  * np.sqrt(float(b[1] - b[0] + 1)))
+                f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, band_avg].mean(axis=-1)
+                ib -= 1
+            elif nspbps_v == 1:
+                if b[0] == 1:
+                    f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][0, :, :].sum(axis=0)
+                    f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, 0].mean(axis=-1)
+                elif b[0] == 0:
+                    continue
+                else:
+                    f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][b[1]:b[0]+1, :, :].sum(axis=0)
+                    f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, b[1]:b[0]+1].mean(axis=-1)
 
-                        phases_file['phases/coeffs'][b[1]:b[0]+1, :, ispb, :] = phases.view(np.float64).reshape((phases.shape + (2,)))
-                    
-                    else:
-                        phases = phases_file['phases/coeffs'][b[1]:b[0]+1, :, ispb, :].view(np.complex128)[:,:,0]
-                        
-                        
-                    if verbosity > 1:
-                        logger.info(f'phases.shape for SPB {ib}: {phases.shape}')
-                        logger.info(f'coeffs.shape for SPB {ib}: {coeffs.shape}')
-                    
-                    # Make sure we do a complex mult., and then view result as float
-                    spb = np.concatenate([np.tensordot(coeffs[:,:,cum_ngk[k]:cum_ngk[k+1]], phases[:,k], axes=(0, 0)) for k in range(nk)], axis=-2)
-                    
-                    f_out['wfns/coeffs'][ib, :, :] = spb.view(np.float64)
-                    f_out['mf_header/kpoints/el'][:, :, ib] = el
+                ib -= 1
 
-                    ib -= 1
-                    
+            else: # nspbps > 1
+                if b[0] == 0:
+                    continue
+
+                elif b[0] == b[1] and verbosity > 2:
+                    logger.warning(f'Current slice {b} has the same start and end bands. Using nspbps > 1 will introduce unnecessary error. Hack the code to automatically deal with this, or ignore it, but using valence SPBs in sigma may be an extremely poor approximation due to the exchange term.')
+                    # coeffs = f_in['wfns/coeffs'][b[0], :, :, :]
+                    # el = f_in['mf_header/kpoints/el'][:, :, b[0]]
+                    # ib -= 1
+
+                    ### WARNING: uncommenting ^^^ does not work, since the h5 dataset is a fixed size.
+                    ### (purpose is to just copy the band instead of putting extra SPBs)
+
+                else:
+                    coeffs = f_in['wfns/coeffs'][b[1]:b[0]+1, :, :, :].view(np.complex128)
+                    el = f_in['mf_header/kpoints/el'][:, :, b[1]:b[0]+1].mean(axis=-1)
+
+                    num_bands_in = b[0] - b[1] + 1
+
+                    for ispb in range(nspbps_v):
+                        if fname_phases is None:
+                            # Phases are normalized to the DOS / sqrt(number_pseudobands)
+                            phases = np.random.random((num_bands_in, nk,))
+                            phases = np.exp(2 * np.pi * 1.0j * phases) / np.sqrt(float(nspbps_v))
+
+                            phases_file['phases/coeffs'][b[1]:b[0]+1, :, ispb, :] = phases.view(np.float64).reshape((phases.shape + (2,)))
+
+                        else:
+                            phases = phases_file['phases/coeffs'][b[1]:b[0]+1, :, ispb, :].view(np.complex128)[:,:,0]
+
+
+                        if verbosity > 1:
+                            logger.info(f'phases.shape for SPB {ib}: {phases.shape}')
+                            logger.info(f'coeffs.shape for SPB {ib}: {coeffs.shape}')
+
+                        # Make sure we do a complex mult., and then view result as float
+                        spb = np.concatenate([np.tensordot(coeffs[:,:,cum_ngk[k]:cum_ngk[k+1]], phases[:,k], axes=(0, 0)) for k in range(nk)], axis=-2)
+
+                        f_out['wfns/coeffs'][ib, :, :] = spb.view(np.float64)
+                        f_out['mf_header/kpoints/el'][:, :, ib] = el
+
+                        ib -= 1
+
     
     if qshift:
         f_out.close()
@@ -425,7 +436,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
                 
                 # Make sure we do a complex mult., and then view result as float
                 spb = np.concatenate([np.tensordot(coeffs[:,:,cum_ngk[k]:cum_ngk[k+1]], phases[:,k], axes=(0, 0)) for k in range(nk)], axis=-2)
-                print(spb.shape)
+                
 
                 f_out['wfns/coeffs'][ib, :, :] = spb.view(np.float64)
                 f_out['mf_header/kpoints/el'][:, :, ib] = el
