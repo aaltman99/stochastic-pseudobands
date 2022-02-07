@@ -5,6 +5,7 @@
 **Originally written by Felipe H. da Jornada (2015)**
 
 old/pseudobands_FHJ.py is Felipe's original code
+
 old/pseudobands_no_rand_kpts.py does not randomize over kpoints
 
 **pseudobands.py is the current working version.** 
