@@ -146,7 +146,7 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, efrac_v=0
     # ifmax is 1-indexed, en_orig is 0-indexed
     # also fortran order...
     fermi = np.mean([np.max(VBMCBM[...,0]), np.min(VBMCBM[...,1])]) 
-    logger.info(f'fermi = {fermi} Ry')
+    logger.info(f'E_Fermi = {fermi} Ry')
 
     
     assert nv <= ifmax
@@ -223,18 +223,22 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, efrac_v=0
 
 
 ### nv and nc bands are copied. SPBS are constructed outside this range
-def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, nv=-1, nc=1, nspbps_v=1, nspbps_c=1, single_band=False, copydirectly=True, verbosity=0, **kwargs):
+def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, fname_in_NNS = None, fname_out_NNS = None, nv=-1, nc=1, nspbps_v=1, nspbps_c=1, single_band=False, copydirectly=True, verbosity=0, **kwargs):
     
     start = time.time()
         
-    if not qshift:
+    if qshift == 0:
         f_in = h5py.File(fname_in, 'r')
         f_out = h5py.File(fname_out, 'w')
         logger.info(f'fname_in = {fname_in}\n fname_out = {fname_out}\n ')
-    else:
+    elif qshift == 1:
         f_in = h5py.File(fname_in_q, 'r')
         f_out = h5py.File(fname_out_q, 'w')
         logger.info(f'fname_in = {fname_in_q}\n fname_out = {fname_out_q}\n ')
+    elif qshift == 2:
+        f_in = h5py.File(fname_in_NNS, 'r')
+        f_out = h5py.File(fname_out_NNS, 'w')
+        logger.info(f'fname_in = {fname_in_NNS}\n fname_out = {fname_out_NNS}\n ')
         
         
     nv = int(nv)
@@ -273,11 +277,14 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
     
     # Cannot read from this file if it exists due to different numbers of k-points in WFN and WFNq
     # Writing just for logging purposes
-    if not qshift:
+    if qshift == 0:
         phases_file = h5py.File('phases'+fname_out[0:-3]+'.h5', 'w')
-    else:
+    elif qshift == 1:
         phases_file = h5py.File('phases'+fname_out_q[0:-3]+'.h5', 'w')
-        
+    elif qshift == 2: 
+        phases_file = h5py.File('phases'+fname_out_NNS[0:-3]+'.h5', 'w')
+    else:
+        raise ValueError('bad value for qshift')
     
     f_out.copy(f_in['mf_header'], 'mf_header')
     f_out.create_group('wfns')
@@ -429,7 +436,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
         f_in.close()
 
         end = time.time()
-        logger.info(f'Done! Time taken: {round(end-start,2)} sec')
+        logger.info(f'Done! Time taken: {round(end-start,2)} sec\n\n\n')
         return
         
     if nc != -1:
@@ -483,7 +490,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
     f_in.close()
     
     end = time.time()
-    logger.info(f'Done! Time taken: {round(end-start,2)} sec')
+    logger.info(f'Done! Time taken: {round(end-start,2)} sec\n\n\n')
 
 
 
@@ -498,8 +505,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--fname_in', help='Input WFN.h5, in HDF5 format', required=True)
     parser.add_argument('--fname_in_q', help='Input WFNq.h5, in HDF5 format', required=True)
+    parser.add_argument('--fname_in_NNS', help='Output WFN.h5 with pseudobands, in HDF5 format')
     parser.add_argument('--fname_out', help='Output WFN.h5 with pseudobands, in HDF5 format', required=True)
     parser.add_argument('--fname_out_q', help='Output WFNq.h5 with pseudobands, in HDF5 format', required=True)
+    parser.add_argument('--fname_out_NNS', help='Output WFNq.h5 with pseudobands, in HDF5 format')
+    parser.add_argument('--NNS', default=False, help='Using separate NNS WFNq?')
     parser.add_argument('--nv', type=int, default=-1,
                         help='Number of protected valence bands counting from VBM.')
     parser.add_argument('--nc', type=int, default=100,
@@ -544,8 +554,11 @@ if __name__ == "__main__":
     
     out = check_and_block(**vars(args))
     
-    pseudoband(False, *out, **vars(args))
+    pseudoband(0, *out, **vars(args))
     
-    pseudoband(True, *out, **vars(args))
+    pseudoband(1, *out, **vars(args))
+    
+    if int(vars(args)['NNS']) == 1:
+        pseudoband(2, *out, **vars(args))
 
     
