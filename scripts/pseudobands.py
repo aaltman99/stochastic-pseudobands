@@ -223,7 +223,7 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, efrac_v=0
 
 
 ### nv and nc bands are copied. SPBS are constructed outside this range
-def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, fname_in_NNS = None, fname_out_NNS = None, nv=-1, nc=1, nspbps_v=1, nspbps_c=1, single_band=False, copydirectly=True, verbosity=0, **kwargs):
+def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, fname_in_NNS = None, fname_out_NNS = None, nv=-1, nc=100, nspbps_v=1, nspbps_c=1, single_band=False, copydirectly=True, verbosity=0, **kwargs):
     
     start = time.time()
         
