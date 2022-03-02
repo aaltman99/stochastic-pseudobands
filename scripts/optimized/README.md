@@ -46,7 +46,7 @@ The approximations made by this algorithm have vanishing stochastic error only w
 - **fname_out_q (str)**: Output WFNq.h5 with pseudobands, in HDF5 format
 
 ***Recommended***
-- **nv (int >= -1)**: Number of protected valence bands counting from VBM. If nv == -1 then all valence bands are copied (i.e. no valence SPBs), which is preferable if there are less than ~100 electrons. Default == -1.
+- **nv (int >= -1)**: Number of protected valence bands counting from VBM. If nv == -1 then all valence bands are copied (i.e. no valence SPBs), which is preferable if there are less than ~100 valence states. Default == -1.
 - **nc (int >= -1)**: Number of protected conduction bands counting from CBM. If nc == -1 then all conduction bands are copied (i.e. no conduction SPBs). Default == 100
 - **nslice_v (int >= 0)**:Number of subspaces spanning the total energy range of the valence bands. Default == 10
 - **nslice_c (int >= 0)**: Number of subspaces spanning the total energy range of the valence bands. Default == 100
