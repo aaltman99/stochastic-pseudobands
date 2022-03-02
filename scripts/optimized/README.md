@@ -57,7 +57,6 @@ The approximations made by this algorithm have vanishing stochastic error only w
 - **NNS (int=0,1)**: If using a separate WFNq.h5 for NNS, set **NNS = 1**. The NNS WFNq fname_in/fname_out flags will be ignored without this flag. Default == 0.
 - **fname_in_NNS (str)**: Input NNS WFNq.h5, in HDF5 format. Default == None
 - **fname_out_NNS (str)**: Output NNS WFNq.h5 with pseudobands, in HDF5 format. Default == None.
-- **efrac_c_fine (float < 1)** (optional): Accumulation window for conduction slices with energies <= max_freq, as a fraction of the energy of the band in each subspace. Intended for use with full-frequency in epsilon, otherwise leave unset. Default == **efrac_c**.
 - **max_freq (float)** (optional): Maximum energy (Ry) for usage of efrac_c_fine. Should be greater than the largest energy in the full-frequency calculation in epsilon. If **efrac_c_fine** is not set then this flag does nothing. Default == 1.0.
 - **copydirectly (bool)** (optional): Direct copying for protected bands. If False, then copying is done in chunks to limit memory usage. Set to False is you have a large number of protected bands. Default == True.
 - **fname_phases (str)** (optional): Phases.h5 file, containing random coefficients for SPB construction for valence states. Should be consistent with all other parameters. Intended for use with WFNq calculation. Default == None.
@@ -69,5 +68,4 @@ python3 $PATH-TO-SCRIPT/pseudobands.py --fname_in WFN_in.h5 --fname_in_q WFNq.h5
 
 ### **Best Practices**
 - If you run several calculations you will need to keep track of the **WFN_SPB.h5** output files. The SPB parameters are NOT logged in the WFN_SPB.h5 file. This is because it must maintain the standard **WFN** file format. **Set the parameters used as part of the WFN_SPB.h5 filename**.
-- Setting the output filename is not part of the code because you may want to run pseudobands multiple times to estimate the variance on the GW quantities. In this case you should append a run number to your output filename, like **WFN_SPB...(parameters)..._run1.h5**.
 - If running multiple calculations, use the workflow scripts in the *workflow* folder to stay organized and save time.
