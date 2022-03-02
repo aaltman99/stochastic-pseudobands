@@ -19,9 +19,15 @@ The **WFN** file output by these scripts *exponentially* reduces the number of b
 Given a set of input parameters (explained below) and input **WFN.h5** file containing many bands, *pseudobands.py* constructs a set of energy slices for both valence and conduction bands, and creates stochastic linear combinations of the bands in each energy slice. The stochastic pseudobands in a given slice are all degenerate, with energy equal to the mean energy of the slice. There are also a number of **protected bands**, which are simply copied from the input file, and not included in the slicing process. These should at least contain the bands for which the self energy is computed. The output is a **WFN_SPB.h5** file which has the same format as **WFN.h5** but contains the stochastic pseudobands, and a **phases.h5** file that contains the random coefficients used to construct the valence SPBs. Different random coefficients are used for different k-points. **WFN and WFNq are treated simultaneously, and must both be provided as input.**
 
 ### **Construction Of Slices**
-Slices are constructed according an optimization procedure designed to minimizze the expected error of the Green's function given the input parameters. The slices are given by an exponential distribution, i.e. the energy-width of each slice is given by:
+Slices are constructed according an optimization procedure designed to minimize the expected error of the Green's function given the input parameters. The slices are given by an exponential distribution, i.e. the energy-width of each slice is given by:
         **w_j = alpha * exp(beta * j)**
-for some parameters **alpha, beta** that are obtained from the optimization. This exponential is the ansatz for the minimization of the expected error that allows quick on-the-fly optimization. The parameters going into the optiization are **E0, Emax, nslice,** and **nspbps,** where **E0** and **Emax** are the energy of the first unprotected band and the energy of the last band in the input **WFN.h5** file, respectively.
+for some parameters **alpha, beta** that are obtained from the optimization. The parameters going into the optiization are **E0, Emax, nslice,** and **nspbps,** where **E0** and **Emax** are the energy of the first unprotected band and the energy of the last band in the input **WFN.h5** file, respectively.
+
+Note that the **nslice** parameters are directly related to the computational cost of the GW calculation, with epsilon scaling as **nslice_v * nspbps_v * nslice_c * nspbps_c**. Therefore, these parameters should be determined by the resources you are willing to expend on the GW calculation.
+
+## ***Warning*: Important Use Cases**
+The approximations made by this algorithm have vanishing stochastic error only when the computed quantity has an inverse energy term. This means epsilon can handle both conduction and valence pseudobands but <span style="color:red">**sigma should not be used with valence pseudobands**</span> due to the exchange term that weights all valence bands equally!! 
+
 
 ## **Input Files**
 - **WFN.h5**: WFN file in *h5* format. Should contain many unoccupied bands from either ParaBands or nscf calculation from a DFT code that has been run through pw2bgw.x and then wfn2hdf.x
