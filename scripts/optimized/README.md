@@ -49,9 +49,9 @@ The approximations made by this algorithm have vanishing stochastic error only w
 - **nv (int >= -1)**: Number of protected valence bands counting from VBM. If nv == -1 then all valence bands are copied (i.e. no valence SPBs), which is preferable if there are less than ~100 valence states. Default == -1.
 - **nc (int >= -1)**: Number of protected conduction bands counting from CBM. If nc == -1 then all conduction bands are copied (i.e. no conduction SPBs). Default == 100
 - **nslice_v (int >= 0)**:Number of subspaces spanning the total energy range of the valence bands. Default == 10
-- **nslice_c (int >= 0)**: Number of subspaces spanning the total energy range of the valence bands. Default == 100
-- **nspbps_v (int >= 1)**: Number of stochastic pseudobands constructed per valence slice. Typically set this higher than nspbps_c, or do not use valence SPBs for sigma. Default == 1.
-- **nspbps_c (int >= 1)**: Number of stochastic pseudobands constructed per conduction slice. Default == 1.
+- **nslice_c (int >= 0)**: Number of subspaces spanning the total energy range of the conduction bands. Default == 100
+- **nspbps_v (int >= 1)**: Number of stochastic pseudobands constructed per valence slice. Typically set this higher than nspbps_c, or do not use valence SPBs for sigma. **You must set this value to be at least 2!!** Default == 2.
+- **nspbps_c (int >= 1)**: Number of stochastic pseudobands constructed per conduction slice. **You must set this value to be at least 2!!** Default == 2.
 
 ***Optional***
 - **NNS (int=0,1)**: If using a separate WFNq.h5 for NNS, set **NNS = 1**. The NNS WFNq fname_in/fname_out flags will be ignored without this flag. Default == 0.
