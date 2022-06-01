@@ -3,15 +3,13 @@
 # Pseudobands!
 
 
-##### FIXME: check that optimized parameters work with uniform_width
+# #### FIXME: check that optimized parameters work with uniform_width
 
 
-### TODO: fix copydirectly=False case in pseudobands()
+# ## TODO: fix copydirectly=False case in pseudobands()
 
-### current scheme only works for gapped materials (?)
-### current scheme only works for not-too-large spin-orbit splitting
-
-### TODO: need to add uniform_width slices for valence too
+# ## current scheme only works for gapped materials (?)
+# ## current scheme only works for not-too-large spin-orbit splitting
 
 
 from __future__ import print_function
@@ -25,6 +23,8 @@ import time
 import sys
 from optimize_funs import optimize, alpha, w
 
+# so that logger doesn't try to truncate arrays
+np.set_printoptions(threshold=sys.maxsize)
 
 def construct_blocks(el, n_copy, nslice, nspbps, uniform_width, max_freq):
     
@@ -33,23 +33,31 @@ def construct_blocks(el, n_copy, nslice, nspbps, uniform_width, max_freq):
     
     # optimizing parameters
     if max_freq > 0:
-        slices = uniform_width*np.arange(max_freq//uniform_width) + E0
+        E0 = el[n_copy]
+        slices = uniform_width*np.arange(max_freq//uniform_width -1) + E0
         start_exp = len(slices)
         
-        E0 = slices[-1]
+        E0new = slices[-1] + uniform_width
         Emax = el[-1]
         assert E0 > 0
         assert Emax > E0
+        assert Emax > E0new
+        assert E0new > E0
 
-        res = optimize(E0, Emax, nspbps, nslice)
+        res = optimize(E0new, Emax, nspbps, nslice)
         beta = res.x
         
-        np.concatenate(slices, np.insert(np.cumsum([w(beta, j, E0, Emax, nspbps, nslice) for j in range(1, nslice+1)]), 0,0) + E0)
+        widths = np.insert(np.cumsum([w(beta, j, E0new, Emax, nspbps, nslice) for j in range(1, nslice + 1)]), 0,0) + E0new
+        
+        # start_exp_idx = np.where(widths > uniform_width
+        
+        slices = np.concatenate((slices, widths))
+        
         
     else:
         E0 = el[n_copy]
         Emax = el[-1]
-        
+
         assert E0 > 0
         assert Emax > E0
 
@@ -61,33 +69,49 @@ def construct_blocks(el, n_copy, nslice, nspbps, uniform_width, max_freq):
         start_exp = 0
     
     assert slices[0] == E0
-    assert np.round(slices[-1], 10) == np.round(Emax, 10) # sometimes the last few decimals get messed up
+    # assert np.round(slices[-1], 10) == np.round(Emax, 10) # sometimes the last few decimals get messed up
     slices[-1] = Emax
-
+    
+    
+    ##### TODO: figure out a way to couple uniform_width & nslices such that slices
+    ## are monotonically increasing always
+    
+    # logger.info(slices)
+    # assert np.all(slices[:-1] <= slices[1:]) # monotonically increasing
 
     blocks = []
     nb_out = n_copy
     si = 0
-
-    while si <= nslice-1:
-
+    
+    
+    
+    while si <= len(slices) - 2:
+        if len(blocks) > 1:
+            l = len(blocks)
+            assert blocks[l-1][0] == blocks[l-2][1]+1
+            
         first_en = slices[si]
         assert first_en > 0
 
         last_en = slices[si+1]
-        si +=1
+        assert last_en >= first_en
+        si += 1
         
         first_idx = list(np.where(el >= first_en))
         last_idx = list(np.where(el <= last_en))
         
         # no bands in slice, mostly an issue for valence states (usually sparse)
-        if first_idx[0][0] >= last_idx[0][-1]: 
+        if first_idx[0][0] == last_idx[0][-1]: 
+            blocks.append([first_idx[0][0], last_idx[0][-1]])
+            continue
+        elif first_idx[0][0] > last_idx[0][-1]: 
             continue
             
         blocks.append([first_idx[0][0], last_idx[0][-1]])
 
         nb_out += 1
-    
+        
+                
     return np.asarray(blocks), start_exp
 
 
@@ -103,7 +127,7 @@ def fix_blocks(blocks, vc, ifmax, nb_orig):
         blocks += ifmax
         assert blocks[-1][-1] == nb_orig-1
 
-        
+
 # bunch of sanity checks, block construction for WFN and WFNq simultaneously 
 def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v = 10, nslice_c = 100, uniform_width=None, max_freq=0., nspbps_v=1, nspbps_c=1, verbosity=0, **kwargs):
     
@@ -191,7 +215,7 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
     # hopefully there are no states at 0 energy... TODO: add assert statement
 
     if nv != -1:
-        blocks_v, start_exp_v = construct_blocks(el_all_v, nv, nslice_v, nspbps_v, None, 0.)
+        blocks_v, start_exp_v = construct_blocks(el_all_v, nv, nslice_v, nspbps_v, uniform_width, max_freq)
         fix_blocks(blocks_v, 'v', ifmax, nb_orig)
         blocks_en_v = [[np.mean(en_orig[...,b[0]]), np.mean(en_orig[...,b[1]])] for b in blocks_v]
         
@@ -335,11 +359,12 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
     def resize(file, name):
         file.move(name, name + '_orig_pb')
         shape = list(file[name + '_orig_pb'].shape)
+        shape_orig = shape
         shape[-1] = nb_out_v + nb_out_c
         file.create_dataset(name, shape, dtype='d')
-        file[name][:, :, :nb_out_v+nb_out_c] = file[name + '_orig_pb'][:, :, :nb_out_v+nb_out_c]
+        # file[name][:, :, :min(shape_orig[-1], nb_out_v+nb_out_c)] = file[name + '_orig_pb'][:, :, :min(shape_orig[-1], nb_out_v+nb_out_c)]
         del file[name + '_orig_pb']
-
+        
             
     resize(f_out, 'mf_header/kpoints/occ')
     resize(f_out, 'mf_header/kpoints/el')
@@ -402,8 +427,11 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
         ib = nb_out_v-nv-1
 
         for b in blocks_v:
+            
+            num_bands_in = b[0] - b[1] + 1
+            
             if verbosity > 1:
-                logger.info(f'slice_index, slice: {ib, b}')
+                logger.info(f'slice_index, slice: {ib - (nb_out_v-nv-1), b}')
 
             if single_band:
                 band_avg = b[0] + (b[1] - b[0]) // 2
@@ -420,8 +448,13 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
                 else:
                     f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][b[1]:b[0]+1, :, :].sum(axis=0)
                     f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, b[1]:b[0]+1].mean(axis=-1)
-
+                
+                # sum rule: <SPB|SPB> = num_band_in
+                logger.info(f"num_bands_in, norm(SPB)**2: {num_bands_in}, {np.linalg.norm(f_out['wfns/coeffs'][ib, :, :].view(np.complex128))**2}")
+                assert abs(np.linalg.norm(f_out['wfns/coeffs'][ib, :, :].view(np.complex128))**2 - num_bands_in) <= 1e-9
+                                 
                 ib -= 1
+                
 
             else: # nspbps > 1
                 if b[0] == 0:
@@ -439,8 +472,6 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
                 else:
                     coeffs = f_in['wfns/coeffs'][b[1]:b[0]+1, :, :, :].view(np.complex128)
                     el = f_in['mf_header/kpoints/el'][:, :, b[1]:b[0]+1].mean(axis=-1)
-
-                    num_bands_in = b[0] - b[1] + 1
 
                     for ispb in range(nspbps_v):
                         # Phases are normalized to the DOS / sqrt(number_pseudobands)
@@ -460,8 +491,14 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
 
                         f_out['wfns/coeffs'][ib, :, :] = spb.view(np.float64)
                         f_out['mf_header/kpoints/el'][:, :, ib] = el
+                        
+                        # sum rule: <SPB|SPB> = num_band_in / num_per_slice
+                        logger.info(f"num_bands_in/nspbps_v, norm(SPB)**2: {num_bands_in/float(nspbps_v)}, {np.linalg.norm(spb)**2}")
+                        assert abs(np.linalg.norm(spb)**2 - num_bands_in / float(nspbps_v)) <= 1e-9
 
                         ib -= 1
+                    
+                
 
     
     if qshift:
@@ -479,8 +516,11 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
         ib = nb_out_v + nc 
 
         for b in blocks_c:
+            
+            num_bands_in = b[1] - b[0] + 1
+            
             if verbosity > 1:
-                logger.info(f'slice_index, slice: {ib, b}')
+                logger.info(f'slice_index, slice: {ib-(nb_out_v + nc), b}')
 
             if single_band:
                 band_avg = b[0] + (b[1] - b[0]) // 2
@@ -491,7 +531,14 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
             elif nspbps_c == 1:
                 f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][b[0]:b[1] + 1, :, :].sum(axis=0)
                 f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, b[0]:b[1] + 1].mean(axis=-1)
-
+                if verbosity > 1:
+                    avgen = f_in['mf_header/kpoints/el'][:, :, b[0]:b[1] + 1].mean(axis=-1)
+                    logger.info(f'energy of slice {b}: {avgen}')
+                    
+                # sum rule: <SPB|SPB> = num_band_in
+                logger.info(f"num_bands_in, norm(SPB)**2: {num_bands_in}, {np.linalg.norm(f_out['wfns/coeffs'][ib, :, :].view(np.complex128))**2}")
+                assert abs(np.linalg.norm(f_out['wfns/coeffs'][ib, :, :].view(np.complex128))**2 - num_bands_in) <= 1e-9
+                
                 ib += 1
 
             else:
@@ -509,12 +556,14 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
                             logger.info(f'coeffs.shape for SPB {ib}: {coeffs.shape}')
 
                     # Make sure we do a complex mult., and then view result as float
-
                     spb = np.concatenate([np.tensordot(coeffs[:,:,cum_ngk[k]:cum_ngk[k+1]], phases[:,k], axes=(0, 0)) for k in range(nk)], axis=-2)
-
 
                     f_out['wfns/coeffs'][ib, :, :] = spb.view(np.float64)
                     f_out['mf_header/kpoints/el'][:, :, ib] = el
+                    
+                    # sum rule: <SPB|SPB> = num_band_in / num_per_slice
+                    logger.info(f"num_bands_in/nspbps_c, norm(SPB)**2: {num_bands_in/float(nspbps_c)}, {np.linalg.norm(spb)**2}")
+                    assert abs(np.linalg.norm(spb)**2 - num_bands_in / float(nspbps_c)) <= 1e-9
 
                     ib += 1
                 
@@ -593,5 +642,4 @@ if __name__ == "__main__":
     
     if int(vars(args)['NNS']) == 1:
         pseudoband(2, *out, **vars(args))
-
-    
+ 
