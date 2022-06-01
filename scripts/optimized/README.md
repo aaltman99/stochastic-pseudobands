@@ -11,7 +11,7 @@ old/pseudobands_FHJ.py is Felipe's original code
 
 ## **Purpose**
 
-The **WFN** file output by these scripts *exponentially* reduces the number of bands required to perform the GW calculation. There is currently **no mean-field speedup**, but eventually a spectral slicing algorithm will be implemented in ParaBands that can cirvumvent the current requirement to generate deterministic unoccupied states. **The GW calculation becomes almost independent of system size with this approach.**
+The **WFN** file output by these scripts *exponentially* reduces the number of bands required to perform the GW calculation. There is currently **no mean-field speedup**, but eventually a spectral slicing algorithm will be implemented in ParaBands that can cirvumvent the current requirement to generate deterministic unoccupied states. **The GW calculation scales quasi-quadratically rather than quarticly with this approach.**
 
 
 ## **How It Works**
