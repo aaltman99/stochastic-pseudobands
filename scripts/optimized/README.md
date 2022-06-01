@@ -36,7 +36,7 @@ The approximations made by this algorithm have vanishing stochastic error only w
 ## **Output Files**
 - **WFN_SPB.h5**: WFN file containing stochastic pseudobands
 - **WFN_SPB.log**: Log file containing all input parameters, filenames, and errors, if any.
-- **phases.h5**: h5 file containing the random coefficients used to construct the *valence* SPBs. Used for constructing SPBs in for **WFNq**. 
+- **phases.h5**: h5 file containing the random coefficients used to construct the *valence* SPBs. Used for constructing SPBs for **WFNq**. 
 
 ## **Input paramaters**
 ***Required***
