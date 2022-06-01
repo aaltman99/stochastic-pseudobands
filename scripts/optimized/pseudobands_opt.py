@@ -129,7 +129,7 @@ def fix_blocks(blocks, vc, ifmax, nb_orig):
 
 
 # bunch of sanity checks, block construction for WFN and WFNq simultaneously 
-def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v = 10, nslice_c = 100, uniform_width=None, max_freq=0., nspbps_v=1, nspbps_c=1, verbosity=0, **kwargs):
+def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v = 10, nslice_c = 100, uniform_width=None, max_freq=0., nspbps_v=2, nspbps_c=2, verbosity=0, **kwargs):
     
     nv = int(nv)
     nc = int(nc)
@@ -145,6 +145,11 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
     assert nslice_c > 0
     
     assert not (nv == -1 and nc == -1), 'Just copying input WFN file, no need to use this script for that.'
+    
+    if nv != -1: # not just copying
+        assert nspbps_v >= 2, 'You must use at least 2 bands per slice to obtain meaningful results!'
+    if nc != -1: # not just copying
+        assert nspbps_c >= 2, 'You must use at least 2 bands per slice to obtain meaningful results!'
     
     f_in = h5py.File(fname_in, 'r')
     f_in_q = h5py.File(fname_in_q, 'r')
@@ -276,7 +281,7 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
 
 
 ### nv and nc bands are copied. SPBS are constructed outside this range
-def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, fname_in_NNS = None, fname_out_NNS = None, nv=-1, nc=100, nspbps_v=1, nspbps_c=1, single_band=False, copydirectly=True, verbosity=0, **kwargs):
+def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, fname_in_NNS = None, fname_out_NNS = None, nv=-1, nc=100, nspbps_v=2, nspbps_c=2, single_band=False, copydirectly=True, verbosity=0, **kwargs):
     
     start = time.time()
         
@@ -606,10 +611,10 @@ if __name__ == "__main__":
                         help=('Number of subspaces spanning the total energy range of the conduction bands.'))
     parser.add_argument('--max_freq', type=float, default=0.0,
                         help=('Maximum energy (Ry) before coarse slicing kicks in for conduction SPBs. This should be at least the maximum frequency for which you plan to evaluate epsilon.'))
-    parser.add_argument('--nspbps_v', type=int, default=1,
-                        help=('Number of stochastic pseudobands per valence slice'))
-    parser.add_argument('--nspbps_c', type=int, default=1,
-                        help=('Number of stochastic pseudobands per conduction slice'))
+    parser.add_argument('--nspbps_v', type=int, default=2,
+                        help=('Number of stochastic pseudobands per valence slice. Must be at least 2.'))
+    parser.add_argument('--nspbps_c', type=int, default=2,
+                        help=('Number of stochastic pseudobands per conduction slice. Must be at least 2.'))
     parser.add_argument('--copydirectly', default=True,
                         help=('Direct copying for protected bands. If False, then copying is done in chunks to limit memory usage. Set to False is you have a large number of protected bands.'))
     parser.add_argument('--verbosity', type=int, default=0,
