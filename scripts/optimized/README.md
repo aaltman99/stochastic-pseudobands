@@ -57,14 +57,15 @@ The approximations made by this algorithm have vanishing stochastic error only w
 - **NNS (int=0,1)**: If using a separate WFNq.h5 for NNS, set **NNS = 1**. The NNS WFNq fname_in/fname_out flags will be ignored without this flag. Default == 0.
 - **fname_in_NNS (str)**: Input NNS WFNq.h5, in HDF5 format. Default == None
 - **fname_out_NNS (str)**: Output NNS WFNq.h5 with pseudobands, in HDF5 format. Default == None.
-- **max_freq (float)** (optional): Maximum energy (Ry) for usage of efrac_c_fine. Should be greater than the largest energy in the full-frequency calculation in epsilon. If **efrac_c_fine** is not set then this flag does nothing. Default == 1.0.
+- **max_freq (float)** (optional): Maximum energy (Ry) for usage of uniform_freq, for full frequency calculations. Should be greater than the largest energy in the full-frequency calculation in epsilon. If **uniform_width** is not set then this flag does nothing. Default == 1.0.
+- **uniform_width (float)** (optional): energy width of constant slice slices. Required for use of **max_frequency**. Should be half of the spacing of the freqency grid. Default == None.
 - **copydirectly (bool)** (optional): Direct copying for protected bands. If False, then copying is done in chunks to limit memory usage. Set to False is you have a large number of protected bands. Default == True.
 - **fname_phases (str)** (optional): Phases.h5 file, containing random coefficients for SPB construction for valence states. Should be consistent with all other parameters. Intended for use with WFNq calculation. Default == None.
 - **verbosity (int 0-3)** (optional): Verbosity of output, written to the log file. Default == 0.
 
 
 ### **Example Run Command**
-python3 $PATH-TO-SCRIPT/pseudobands_opt.py --fname_in WFN_in.h5 --fname_in_q WFNq.h5 --fname_out WFN_SPB.h5 --fname_out_q WFN_SPB_q.h5 --nv 20 --nc 100 --nslice_v 5 --uniform_width 0.0 --nslice_c 20 --max_freq 0.0 --nspbps_v 1 --nspbps_c 1 --verbosity 2
+python3 $PATH-TO-SCRIPT/pseudobands.py --fname_in WFN_in.h5 --fname_in_q WFNq.h5 --fname_out WFN_SPB.h5 --fname_out_q WFN_SPB_q.h5 --nv 50 --nc 50 --efrac_v 0.01 --efrac_c 0.02 --uniform_width 0.0035 --max_freq 1.0 --nspbps_v 2 --nspbps_c 1
 
 ### **Best Practices**
 - If you run several calculations you will need to keep track of the **WFN_SPB.h5** output files. The SPB parameters are NOT logged in the WFN_SPB.h5 file. This is because it must maintain the standard **WFN** file format. **Set the parameters used as part of the WFN_SPB.h5 filename**.
