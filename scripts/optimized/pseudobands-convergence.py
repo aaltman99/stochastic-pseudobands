@@ -12,6 +12,8 @@
 # Note that if order to perform an epsilon convergence test, 
 # this script must be run on both WFN_SPB.h5 and WFN_SPB_q.h5.
 
+# can handle output WFNs from both fortran and python versions of Pseudobands
+
 import numpy as np
 import h5py
 
@@ -55,7 +57,7 @@ def fill_pseudoband_params(f_out, val_params, cond_params):
     groupv = 'pseudobands/valence'
     groupc = 'pseudobands/conduction'
     
-    for p in val_params.keys():
+    for p in val_params.keys(): # doesn't matter which
         f_out[groupv].create_dataset(p, (), data=val_params[p])
         f_out[groupc].create_dataset(p, (), data=cond_params[p])
     
@@ -111,6 +113,8 @@ def reduce_wfn(fname_in, do_val, do_cond):
         val_params['nprot'] = ifmax
         val_params['nslice'] = 0
         val_params['nspbps'] = 0
+        val_params['max_freq'] = 0.0
+        val_params['uniform_width'] = 0.0
     
     if do_val:
         assert val_params['nspbps'] >= 2
