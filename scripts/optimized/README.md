@@ -72,7 +72,9 @@ The approximations made by this algorithm have vanishing stochastic error only w
 
 
 ### **Example Run Command**
-python3 $PATH-TO-SCRIPT/pseudobands.py --fname_in WFN_in.h5 --fname_in_q WFNq.h5 --fname_out WFN_SPB.h5 --fname_out_q WFN_SPB_q.h5 --nv 50 --nc 50 --efrac_v 0.01 --efrac_c 0.02 --uniform_width 0.0035 --max_freq 1.0 --nspbps_v 2 --nspbps_c 1
+python3 ${PATH-TO-SCRIPT}/pseudobands.py --fname_in WFN_in.h5 --fname_in_q WFNq.h5 --fname_out WFN_SPB.h5 --fname_out_q WFN_SPB_q.h5 --nv 50 --nc 50 --efrac_v 0.01 --efrac_c 0.02 --uniform_width 0.0035 --max_freq 1.0 --nspbps_v 2 --nspbps_c 1
+
+See also *run.sh* for an example job submission script.
 
 ### **Best Practices**
 - If you run several calculations you will need to keep track of the **WFN_SPB.h5** output files. The SPB parameters are NOT logged in the WFN_SPB.h5 file. This is because it must maintain the standard **WFN** file format. **Set the parameters used as part of the WFN_SPB.h5 filename**.
