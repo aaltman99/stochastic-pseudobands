@@ -28,7 +28,9 @@ Note that the **nslice** parameters are directly related to the computational co
 ### **Convergence Testing**
 Convergence testing is very straighforward in this scheme. Once **WFN_SPB.h5** and **WFN_SPB_q.h5** are obtained, the script *pseudobands-convergence.py* can be run on each WFN_SPB separately to remove one SPB per slice in the WFN, thereby reducing the total number of bands, and allowing convergence testing with respect to **nspbps**. *Note*: this script creates a separate file and leaves the original untouched. The user can also specify whether to do this procedure for only valence pseudobands, conduction pseudobands, or both. See *run-conv.sh* for an example run script.
 
-If the user wishes to perform convergence testing for epsilon, then **WFN_SPB.h5** and **WFN_SPB_q.h5** must be treated identially. If the user wishes to test sigma, then only run on **WFN_SPB.h5** for conduction pseudobands only.
+**Note:** you must have at least 2 bands per slice for this procedure to make sense. Since converged results only appear after 2 bands per slice, it is recommended to use at least **nspbps = 3** if you plan on doing convergence testing.
+
+If the user wishes to perform convergence testing for epsilon, then **WFN_SPB.h5** and **WFN_SPB_q.h5** must be treated identially. If the user wishes to test sigma, then only run on **WFN_SPB.h5** for conduction pseudobands only (see below).
 
 ## ***Warning*: Important Use Cases**
 The approximations made by this algorithm have vanishing stochastic error only when the computed quantity has an inverse energy term. This means epsilon can handle both conduction and valence pseudobands but <span style="color:red">**sigma should not be used with valence pseudobands**</span> due to the exchange term that weights all valence bands equally!! 
@@ -55,8 +57,8 @@ The approximations made by this algorithm have vanishing stochastic error only w
 - **nc (int >= -1)**: Number of protected conduction bands counting from CBM. If nc == -1 then all conduction bands are copied (i.e. no conduction SPBs). Default == 100
 - **nslice_v (int >= 0)**:Number of subspaces spanning the total energy range of the valence bands. Default == 10
 - **nslice_c (int >= 0)**: Number of subspaces spanning the total energy range of the conduction bands. Default == 100
-- **nspbps_v (int >= 1)**: Number of stochastic pseudobands constructed per valence slice. Typically set this higher than nspbps_c, or do not use valence SPBs for sigma. **You must set this value to be at least 2!!** Default == 2.
-- **nspbps_c (int >= 1)**: Number of stochastic pseudobands constructed per conduction slice. **You must set this value to be at least 2!!** Default == 2.
+- **nspbps_v (int >= 2)**: Number of stochastic pseudobands constructed per valence slice. Typically set this higher than nspbps_c, or do not use valence SPBs for sigma. **You must set this value to be at least 2!!** Default == 2.
+- **nspbps_c (int >= 2)**: Number of stochastic pseudobands constructed per conduction slice. **You must set this value to be at least 2!!** Default == 2.
 
 ***Optional***
 - **NNS (int=0,1)**: If using a separate WFNq.h5 for NNS, set **NNS = 1**. The NNS WFNq fname_in/fname_out flags will be ignored without this flag. Default == 0.
