@@ -12,7 +12,6 @@
 # Note that if order to perform an epsilon convergence test, 
 # this script must be run on both WFN_SPB.h5 and WFN_SPB_q.h5.
 
-
 import numpy as np
 import h5py
 
@@ -108,6 +107,11 @@ def reduce_wfn(fname_in, do_val, do_cond):
     
     val_params, cond_params = parse_pseudobands_params(f_in)
     
+    if not do_val and len(val_params.keys()) == 0:
+        val_params['nprot'] = ifmax
+        val_params['nslice'] = 0
+        val_params['nspbps'] = 0
+    
     if do_val:
         assert val_params['nspbps'] >= 2
     if do_cond:
@@ -127,11 +131,11 @@ def reduce_wfn(fname_in, do_val, do_cond):
     print('New conduction SPB parameters: ', cond_params_new)
     
     nv = val_params['nprot']
-    nc = cond_params['nprot']
     nb_out_v = nv + val_params_new['nspbps'] * val_params_new['nslice']
+    nc = cond_params['nprot']
     nb_out_c = nc + cond_params_new['nspbps'] * cond_params_new['nslice']
      
-    fname_out = fname_in[:-3]
+    fname_out = fname_in[:-3].split('/')[-1]
     if do_val: 
         fname_out += '-val'
     if do_cond:
@@ -226,4 +230,3 @@ if __name__ == "__main__":
 
     reduce_wfn(**vars(args))
     
-  
