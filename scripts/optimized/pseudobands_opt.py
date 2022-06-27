@@ -379,7 +379,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
         pass
         
     # fill in pseudobands params into these groups
-    if nc == -1 and qshift == 0:
+    if nc == -1:
         nprot = params_from_parabands['nc'][()]
         nslice = params_from_parabands['n_subspaces'][()]
         nspbps = params_from_parabands['num_per_subspace'][()]
