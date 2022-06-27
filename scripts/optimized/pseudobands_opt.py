@@ -270,9 +270,9 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
     try:
         params = f_in['parabands/pseudobands']
         
-        params_from_parabands['nprot']= params['nc'][()]
-        params_from_parabands['nslice'] = params['n_subspaces'][()]
-        params_from_parabands['nspbps'] = params['num_per_subspace'][()]
+        params_from_parabands['nc']= params['nc'][()]
+        params_from_parabands['n_subspaces'] = params['n_subspaces'][()]
+        params_from_parabands['num_per_subspace'] = params['num_per_subspace'][()]
     except:
         pass
         
