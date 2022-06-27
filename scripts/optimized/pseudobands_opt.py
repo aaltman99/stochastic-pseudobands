@@ -265,8 +265,14 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
 
         
     # get SPB params, then close files
-    try: 
-        params_from_parabands = f_in['parabands/pseudobands']
+    params_from_parabands = {}
+    
+    try:
+        params = f_in['parabands/pseudobands']
+        
+        params_from_parabands['nprot']= params['nc'][()]
+        params_from_parabands['nslice'] = params['n_subspaces'][()]
+        params_from_parabands['nspbps'] = params['num_per_subspace'][()]
     except:
         pass
         
