@@ -264,20 +264,26 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
         logger.info('No conduction pseudobands')
 
         
+    # get SPB params, then close files
+    try: 
+        params_from_parabands = f_in['parabands/pseudobands']
+    except:
+        pass
+        
+        
     f_in.close()
     f_in_q.close()
-    
     
    
     if nv != -1 and nc != -1:
         logger.info(f'''nslices_c = {nslices_c}\n nslices_v = {nslices_v}\n nspb_c_total = {nspb_c}\n nspb_v_total = {nspb_v}\n nb_out_c_total = {nb_out_c}\n nb_out_v_total = {nb_out_v}\n''') 
-        return blocks_v, blocks_c, ifmax
+        return blocks_v, blocks_c, ifmax, params_from_parabands
     elif nv == -1 and nc != -1:
         logger.info(f'''nslices_c = {nslices_c}\n nspb_c_total = {nspb_c}\n nb_out_c_total = {nb_out_c}\n''') 
-        return None, blocks_c, ifmax 
+        return None, blocks_c, ifmax, params_from_parabands
     elif nv != -1 and nc == -1:
         logger.info(f'''nslices_v = {nslices_v}\n nspb_v_total = {nspb_v}\n nb_out_v_total = {nb_out_v}\n''') 
-        return blocks_v, None, ifmax 
+        return blocks_v, None, ifmax, params_from_parabands
 
 
 def fill_pseudoband_params(fout, vc, nprot, nslice, nspbps, max_freq, uniform_width):
@@ -294,7 +300,7 @@ def fill_pseudoband_params(fout, vc, nprot, nslice, nspbps, max_freq, uniform_wi
     
 
 ### nv and nc bands are copied. SPBS are constructed outside this range
-def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, fname_in_NNS = None, fname_out_NNS = None, nv=-1, nc=100, nspbps_v=2, nspbps_c=2, max_freq=0.0, uniform_width=None, single_band=False, copydirectly=True, verbosity=0, **kwargs):
+def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, fname_in_NNS = None, fname_out_NNS = None, nv=-1, nc=100, nspbps_v=2, nspbps_c=2, max_freq=0.0, uniform_width=None, single_band=False, copydirectly=True, verbosity=0, **kwargs):
     
     start = time.time()
         
@@ -373,11 +379,6 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, fname_in = None, fname_out = N
     f_out.create_group('pseudobands/conduction')
     f_out.create_group('pseudobands/valence')
     
-    try:
-        params_from_parabands = f_in['parabands/pseudobands']
-    except:
-        pass
-        
     # fill in pseudobands params into these groups
     if nc == -1:
         nprot = params_from_parabands['nc'][()]
