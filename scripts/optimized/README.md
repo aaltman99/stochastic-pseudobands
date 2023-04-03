@@ -35,6 +35,8 @@ If you wish to perform convergence testing for epsilon, then **WFN_SPB.h5** and 
 ## ***Warning*: Important Use Cases**
 The approximations made by this algorithm have vanishing stochastic error only when the computed quantity has a 1/energy term. This means epsilon can handle both conduction and valence pseudobands but <span style="color:red">**sigma should not be used with valence pseudobands**</span> due to the exchange term that weights all valence bands equally!! 
 
+Be careful if you plan on performing a full frequency dielectric calculation!!! See optional flags **max_freq** and **uniform_width** corresponding to this case.
+
 
 ## **Input Files**
 - **WFN.h5**: WFN file in *h5* format. Should contain many unoccupied bands from either ParaBands or nscf calculation from a DFT code that has been run through pw2bgw.x and then wfn2hdf.x
