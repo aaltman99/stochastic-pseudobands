@@ -394,7 +394,8 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
     else:
         fill_pseudoband_params(f_out, 'conduction', nc, len(blocks_c), nspbps_c, max_freq, uniform_width)
         
-    fill_pseudoband_params(f_out, 'valence', nv, len(blocks_v), nspbps_v, max_freq, uniform_width)
+    if nv != -1:
+        fill_pseudoband_params(f_out, 'valence', nv, len(blocks_v), nspbps_v, max_freq, uniform_width)
     
     phases_file.copy(f_in['mf_header'], 'mf_header')
     phases_file.create_group('phases')
