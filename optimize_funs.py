@@ -7,8 +7,8 @@
 # of subspaces/slices) paramater instead of the constant energy fraction F,
 # we need to compute the correct partition of the true mean-field bands
 # into N_S subspaces while respecting the constant energy ratio of adjacent
-# subspaces. To do so, we enforce an exponential ansatz on the number of
-# bands in each subspace, i.e. (number of bands in subspace S_j) = α * exp(j * β)
+# subspaces. To do so, we enforce an exponential ansatz on the energy spanned
+# by the bands in each subspace, i.e. (energy spanned subspace S_j) = α * exp(j * β)
 # for some fitting parameters α,β. By doing this, we can deduce F as being 
 # proportional to β. This script determines α and β.
 
