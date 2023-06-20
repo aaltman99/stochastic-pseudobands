@@ -511,7 +511,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
                 f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, band_avg].mean(axis=-1)
                 ib += 1
            
-           elif nspbps_c == 1:
+            elif nspbps_c == 1:
                 f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][b[0]:b[1] + 1, :, :].sum(axis=0)
                 f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, b[0]:b[1] + 1].mean(axis=-1)
                 if verbosity > 1:

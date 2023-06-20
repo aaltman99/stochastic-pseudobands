@@ -10,7 +10,7 @@
 # subspaces. To do so, we enforce an exponential ansatz on the energy spanned
 # by the bands in each subspace, i.e. (energy spanned subspace S_j) = α * exp(j * β)
 # for some fitting parameters α,β. By doing this, we can deduce F as being 
-# proportional to β. This script determines α and β.
+# roughly proportional to β. This script determines α and β.
 
 # For explanation of the parameters N_S and F, see the paper about this method,
 # Altman A. R., Kundu S., da Jornada F. H., "Mixed Stochastic-Deterministic
