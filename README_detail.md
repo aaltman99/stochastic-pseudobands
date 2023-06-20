@@ -1,4 +1,4 @@
-# STOCHASTIC PSEUDOBANDS (SPBs) 
+# STOCHASTIC PSEUDOBANDS
 
 *Altman A. R., Kundu S., da Jornada F. H., "Mixed Stochastic-Deterministic Approach For Many-Body Perturbation Theory Calculations" (2023).*
 
