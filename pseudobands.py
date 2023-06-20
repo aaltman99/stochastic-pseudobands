@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 
-# Pseudobands!
+# Stochastic Pseudobands!
+# See Altman A. R., Kundu S., da Jornada F. H., "Mixed Stochastic-Deterministic
+# Approach For Many-Body Perturbation Theory Calculations" (2023).
 
+# Assumes BerkeleyGW WFN.h5 format
+# http://manual.berkeleygw.org/3.0/wfn_h5_spec/
 
-# #### FIXME: check that optimized parameters work with uniform_width
+# Requires WFN.h5 and WFNq.h5 simultaneously (see workflow diagram)
 
-
-# ## TODO: fix copydirectly=False case in pseudobands()
-
-# ## current scheme only works for gapped materials (?)
-# ## current scheme only works for not-too-large spin-orbit splitting
+# WARNING: Slight modifications needed for treating metals in
+# determining fermi level and ifmax. Using script blindly may
+# lead to off-by-one errors in the band indexing and things like this.
 
 
 from __future__ import print_function
@@ -26,8 +28,8 @@ from optimize_funs import optimize, alpha, w
 # so that logger doesn't try to truncate arrays
 np.set_printoptions(threshold=sys.maxsize)
 
+
 def construct_blocks(el, n_copy, nslice, nspbps, uniform_width, max_freq):
-    
     if uniform_width is None or uniform_width == 0.0:
         assert max_freq == 0.0
     
@@ -49,10 +51,7 @@ def construct_blocks(el, n_copy, nslice, nspbps, uniform_width, max_freq):
         
         widths = np.insert(np.cumsum([w(beta, j, E0new, Emax, nspbps, nslice) for j in range(1, nslice + 1)]), 0,0) + E0new
         
-        # start_exp_idx = np.where(widths > uniform_width
-        
         slices = np.concatenate((slices, widths))
-        
         
     else:
         E0 = el[n_copy]
@@ -69,21 +68,11 @@ def construct_blocks(el, n_copy, nslice, nspbps, uniform_width, max_freq):
         start_exp = 0
     
     assert slices[0] == E0
-    # assert np.round(slices[-1], 10) == np.round(Emax, 10) # sometimes the last few decimals get messed up
     slices[-1] = Emax
-    
-    
-    ##### TODO: figure out a way to couple uniform_width & nslices such that slices
-    ## are monotonically increasing always
-    
-    # logger.info(slices)
-    # assert np.all(slices[:-1] <= slices[1:]) # monotonically increasing
 
     blocks = []
     nb_out = n_copy
     si = 0
-    
-    
     
     while si <= len(slices) - 2:
         if len(blocks) > 1:
@@ -111,7 +100,6 @@ def construct_blocks(el, n_copy, nslice, nspbps, uniform_width, max_freq):
 
         nb_out += 1
         
-                
     return np.asarray(blocks), start_exp
 
 
@@ -128,7 +116,7 @@ def fix_blocks(blocks, vc, ifmax, nb_orig):
         assert blocks[-1][-1] == nb_orig-1
 
 
-# bunch of sanity checks, block construction for WFN and WFNq simultaneously 
+# Sanity checks, block construction for WFN and WFNq simultaneously 
 def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v = 10, nslice_c = 100, uniform_width=None, max_freq=0., nspbps_v=2, nspbps_c=2, verbosity=0, **kwargs):
     
     nv = int(nv)
@@ -181,14 +169,12 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
         logger.error('ifmax is different from ifmax_q. This is nonphysical, make sure your WFN and WFNq files are correct.')
         raise err
     
-    ifmax = ifmax[0] # want a scalar, TODO: add array support?
+    ifmax = ifmax[0] # assumes constant ifmax == nonmetal
     
     logger.info(f'ifmax = {ifmax}')
     
-    
     lastcopy_en_v = en_orig[:,:,ifmax-1-nv]
     lastcopy_en_c = en_orig[:,:,ifmax-1+nc]
-          
     
     if any(np.in1d(lastcopy_en_v, en_orig[...,ifmax-nv:ifmax])):
         logger.error('Chosen nv cuts degenerate bands, use different nv. Try degeneracy_check.x')
@@ -197,15 +183,12 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
         logger.error('Chosen nc cuts degenerate bands, use different nc. Try degeneracy_check.x')
         raise Exception('Chosen nc cuts degenerate bands, use different nc. Try degeneracy_check.x')
     
-    
     VBMCBM = np.concatenate((en_orig[...,ifmax-1:ifmax+1], en_orig_q[...,ifmax-1:ifmax+1]), axis=1)
-    
     
     # ifmax is 1-indexed, en_orig is 0-indexed
     # also fortran order...
     fermi = np.mean([np.max(VBMCBM[...,0]), np.min(VBMCBM[...,1])]) 
     logger.info(f'E_Fermi = {fermi} Ry')
-
     
     assert nv <= ifmax
     assert nc <= nb_orig - ifmax
@@ -217,7 +200,6 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
     el_all_v = -np.flip(np.mean(np.concatenate((en_orig[...,:ifmax], en_orig_q[...,:ifmax]), axis=1)[0], axis=0))
 
     el_c = np.mean(en_orig[0,:,ifmax:None], axis=0)    
-    # hopefully there are no states at 0 energy... TODO: add assert statement
 
     if nv != -1:
         blocks_v, start_exp_v = construct_blocks(el_all_v, nv, nslice_v, nspbps_v, uniform_width, max_freq)
@@ -263,7 +245,6 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
     else: 
         logger.info('No conduction pseudobands')
 
-        
     # get SPB params, then close files
     params_from_parabands = {}
     
@@ -276,10 +257,8 @@ def check_and_block(fname_in = None, fname_in_q = None, nv=-1, nc=100, nslice_v 
     except:
         pass
         
-        
     f_in.close()
     f_in_q.close()
-    
    
     if nv != -1 and nc != -1:
         logger.info(f'''nslices_c = {nslices_c}\n nslices_v = {nslices_v}\n nspb_c_total = {nspb_c}\n nspb_v_total = {nspb_v}\n nb_out_c_total = {nb_out_c}\n nb_out_v_total = {nb_out_v}\n''') 
@@ -305,7 +284,7 @@ def fill_pseudoband_params(fout, vc, nprot, nslice, nspbps, max_freq, uniform_wi
         pass    
     
 
-### nv and nc bands are copied. SPBS are constructed outside this range
+# nv and nc bands are copied. Stochastic Pseudobands are constructed outside this range
 def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_in = None, fname_out = None, fname_in_q = None, fname_out_q = None, fname_in_NNS = None, fname_out_NNS = None, nv=-1, nc=100, nspbps_v=2, nspbps_c=2, max_freq=0.0, uniform_width=None, single_band=False, copydirectly=True, verbosity=0, **kwargs):
     
     start = time.time()
@@ -322,7 +301,6 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
         f_in = h5py.File(fname_in_NNS, 'r')
         f_out = h5py.File(fname_out_NNS, 'w')
         logger.info(f'fname_in = {fname_in_NNS}\n fname_out = {fname_out_NNS}\n ')
-        
         
     nv = int(nv)
     nc = int(nc)
@@ -358,11 +336,9 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
         nspbps_v = 1
         nspbps_c = 1
         
-    
     nk = f_in['mf_header/kpoints/nrk'][()]
     ngk = f_in['mf_header/kpoints/ngk'][()]
     cum_ngk = np.insert(np.cumsum(ngk), 0, 0)
-    
     
     # Cannot read from this file if it exists due to different numbers of k-points in WFN and WFNq
     # Writing just for logging purposes
@@ -420,21 +396,16 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
         logger.info('Copying {} protected bands'.format(ifmax+nc))
     elif nv != -1 and nc == -1:
         logger.info('Copying {} protected bands'.format(mnband-ifmax + nv))
-        
     
     shape = list(f_in['wfns/coeffs'].shape)
     shape[0] = nb_out_v + nb_out_c
     f_out.create_dataset('wfns/coeffs', shape, 'd')
     
-    
     shape_phases = (ifmax-nv, nk, nspbps_v, 2,)
     phases_file.create_dataset('phases/coeffs', shape_phases, 'd')
-   
     
-    if copydirectly:
-        # FHJ: this can take quite a while for some systems..
+    if copydirectly: # always true, copying by chunks not yet implemented
         logger.warning('copydirectly=True. Copying all protected bands at once, can be slow if copying >1000 bands')
-        # logger.info(f'nb_out_v-nv:nb_out_v+nc: {(nb_out_v-nv, nb_out_v+nc)} \n ifmax-nv:ifmax+nc: {(ifmax-nv, ifmax+nc)}')
         if nv != -1 and nc != -1:
             f_out['wfns/coeffs'][nb_out_v-nv:nb_out_v+nc, :, :] = f_in['wfns/coeffs'][ifmax-nv:ifmax+nc, :, :]
             f_out['mf_header/kpoints/el'][:,:,nb_out_v-nv:nb_out_v+nc] = f_in['mf_header/kpoints/el'][:,:,ifmax-nv:ifmax+nc]
@@ -445,28 +416,6 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
             f_out['wfns/coeffs'][nb_out_v-nv:None, :, :] = f_in['wfns/coeffs'][ifmax-nv:None, :, :]
             f_out['mf_header/kpoints/el'][:,:,nb_out_v-nv:None] = f_in['mf_header/kpoints/el'][:,:,ifmax-nv:None]
         
-        
-    else: ### FIXME: indices not correct (if copydirectly indices are correct though); phases_file not included yet
-        nbs_block = 1000
-        ibs_start = range(ifmax-nv, ifmax + nc -1, nbs_block)
-        if Bar is not None:
-            bar = Bar('Copying protected bands', max=len(ibs_start), bar_prefix=' [', bar_suffix='] ',
-                      fill='#', suffix='%(percent)d%% - Remaining: %(eta_td)s')
-        for ib in ibs_start:
-            if Bar is not None:
-                bar.next()
-            ib1, ib2 = ib, min(ib + nbs_block, ifmax+nv+nc-1)
-            tmp = f_in['wfns/coeffs'][ib1:ib2, :, :, :]
-            try:
-                f_out['wfns/coeffs'][ib1:ib2, :, :] = tmp
-            except Exception as err:
-                frameinfo = getframeinfo(currentframe())
-                logger.error(frameinfo.lineno)
-                logger.error(err)
-        if Bar is not None:
-            bar.finish()
-    
-    
     if nv != -1: 
         logger.info('Creating {} valence pseudobands'.format(nspb_v))
         ib = nb_out_v-nv-1
@@ -484,6 +433,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
                                                   * np.sqrt(float(b[1] - b[0] + 1)))
                 f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, band_avg].mean(axis=-1)
                 ib -= 1
+            
             elif nspbps_v == 1:
                 if b[0] == 1:
                     f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][0, :, :].sum(axis=0)
@@ -494,25 +444,15 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
                     f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][b[1]:b[0]+1, :, :].sum(axis=0)
                     f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, b[1]:b[0]+1].mean(axis=-1)
                 
-                # sum rule: <SPB|SPB> = num_band_in * nk
+                # normalization: <SPB|SPB> = num_band_in * nk
                 logger.info(f"num_bands_in * nk, norm(SPB)**2: {num_bands_in * nk}, {np.linalg.norm(f_out['wfns/coeffs'][ib, :, :].view(np.complex128))**2}")
                 assert abs(np.linalg.norm(f_out['wfns/coeffs'][ib, :, :].view(np.complex128))**2 - num_bands_in * nk) <= 1e-9
                                  
                 ib -= 1
                 
-
-            else: # nspbps > 1
-                if b[0] == 0:
+            else: # N_ξ > 1
+                if b[0] == 0: # reached the end
                     continue
-
-                elif b[0] == b[1] and verbosity > 2:
-                    logger.warning(f'Current slice {b} has the same start and end bands. Using nspbps > 1 will introduce unnecessary error. Hack the code to automatically deal with this, or ignore it, but using valence SPBs in sigma may be an extremely poor approximation due to the exchange term.')
-                    # coeffs = f_in['wfns/coeffs'][b[0], :, :, :]
-                    # el = f_in['mf_header/kpoints/el'][:, :, b[0]]
-                    # ib -= 1
-
-                    ### WARNING: uncommenting ^^^ does not work, since the h5 dataset is a fixed size.
-                    ### (purpose is to just copy the band instead of putting extra SPBs)
 
                 else:
                     coeffs = f_in['wfns/coeffs'][b[1]:b[0]+1, :, :, :].view(np.complex128)
@@ -524,7 +464,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
                         phases = np.exp(2 * np.pi * 1.0j * phases) / np.sqrt(float(nspbps_v))
 
                         phases_file['phases/coeffs'][b[1]:b[0]+1, :, ispb, :] = phases.view(np.float64).reshape((phases.shape + (2,)))
-                        ### NOTE: nk in WFN and WFNq are often different, cannot reuse phases from file
+                        # NOTE: nk in WFN and WFNq are often different, cannot reuse phases from file
 
                         if verbosity > 1:
                             logger.info(f'phases.shape for SPB {ib}: {phases.shape}')
@@ -537,14 +477,11 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
                         f_out['wfns/coeffs'][ib, :, :] = spb.view(np.float64)
                         f_out['mf_header/kpoints/el'][:, :, ib] = el
                         
-                        # sum rule: <SPB|SPB> = num_band_in * nk / num_per_slice
+                        # normalization: <SPB|SPB> = num_band_in * nk / num_per_slice
                         logger.info(f"num_bands_in*nk/nspbps_v, norm(SPB)**2: {num_bands_in/float(nspbps_v) * nk}, {np.linalg.norm(spb)**2}")
                         assert abs(np.linalg.norm(spb)**2 - num_bands_in * nk/ float(nspbps_v)) <= 1e-9
 
                         ib -= 1
-                    
-                
-
     
     if qshift:
         f_out.close()
@@ -573,14 +510,15 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
                                                   * np.sqrt(float(b[1] - b[0] + 1)))
                 f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, band_avg].mean(axis=-1)
                 ib += 1
-            elif nspbps_c == 1:
+           
+           elif nspbps_c == 1:
                 f_out['wfns/coeffs'][ib, :, :] = f_in['wfns/coeffs'][b[0]:b[1] + 1, :, :].sum(axis=0)
                 f_out['mf_header/kpoints/el'][:, :, ib] = f_in['mf_header/kpoints/el'][:, :, b[0]:b[1] + 1].mean(axis=-1)
                 if verbosity > 1:
                     avgen = f_in['mf_header/kpoints/el'][:, :, b[0]:b[1] + 1].mean(axis=-1)
                     logger.info(f'energy of slice {b}: {avgen}')
                     
-                # sum rule: <SPB|SPB> = num_band_in * nk
+                # normalization: <SPB|SPB> = num_band_in * nk
                 logger.info(f"num_bands_in, norm(SPB)**2: {num_bands_in * nk}, {np.linalg.norm(f_out['wfns/coeffs'][ib, :, :].view(np.complex128))**2}")
                 assert abs(np.linalg.norm(f_out['wfns/coeffs'][ib, :, :].view(np.complex128))**2 - num_bands_in * nk) <= 1e-9
                 
@@ -591,7 +529,7 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
                 el = f_in['mf_header/kpoints/el'][:, :, b[0]:b[1] + 1].mean(axis=-1)
                 num_bands_in = b[1] - b[0] + 1
                 for ispb in range(nspbps_c):
-                    # no phases file for conduction states
+                    # no phases file for conduction states (would be far too large)
                     # Phases are normalized to the DOS / sqrt(number_pseudobands)
                     phases = np.random.random((num_bands_in, nk,))
                     phases = np.exp(2 * np.pi * 1.0j * phases) / np.sqrt(float(nspbps_c))
@@ -606,13 +544,12 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
                     f_out['wfns/coeffs'][ib, :, :] = spb.view(np.float64)
                     f_out['mf_header/kpoints/el'][:, :, ib] = el
                     
-                    # sum rule: <SPB|SPB> = num_band_in / num_per_slice * nk
+                    # normalization: <SPB|SPB> = num_band_in / num_per_slice * nk
                     logger.info(f"num_bands_in*nk/nspbps_c, norm(SPB)**2: {num_bands_in/float(nspbps_c)*nk}, {np.linalg.norm(spb)**2}")
                     assert abs(np.linalg.norm(spb)**2 - num_bands_in *nk / float(nspbps_c)) <= 1e-9
 
                     ib += 1
                 
-    
     f_out.close()
     phases_file.close()
 
@@ -620,7 +557,6 @@ def pseudoband(qshift, blocks_v, blocks_c, ifmax, params_from_parabands, fname_i
     
     end = time.time()
     logger.info(f'Done! Time taken: {round(end-start,2)} sec\n\n\n')
-
 
 
 if __name__ == "__main__":
@@ -639,25 +575,23 @@ if __name__ == "__main__":
     parser.add_argument('--fname_out_q', help='Output WFNq.h5 with pseudobands, in HDF5 format', required=True)
     parser.add_argument('--fname_out_NNS', help='Output WFNq.h5 with pseudobands, in HDF5 format')
     parser.add_argument('--NNS', default=0, help='Using separate NNS WFNq?')
-    parser.add_argument('--nv', type=int, default=-1,
+    parser.add_argument('--nv', '--N_P_val', type=int, default=-1,
                         help='Number of protected valence bands counting from VBM.')
-    parser.add_argument('--nc', type=int, default=100,
+    parser.add_argument('--nc', '--N_P_cond', type=int, default=100,
                         help='Number of protected conduction bands counting from CBM.')
-    parser.add_argument('--nslice_v', type=int, default=10,
+    parser.add_argument('--nslice_v', '--N_S_val', type=int, default=10,
                         help=('Number of subspaces spanning the total energy range of the valence bands.'))
     parser.add_argument('--uniform_width', type=float, default=None,
                         help=('Constant width accumulation window (Ry) for conduction slices with energies <= max_freq.'))
-    parser.add_argument('--nslice_c', type=int, default=100,
+    parser.add_argument('--nslice_c','--N_S_cond', type=int, default=100,
                         help=('Number of subspaces spanning the total energy range of the conduction bands.'))
     parser.add_argument('--max_freq', type=float, default=0.0,
                         help=('Maximum energy (Ry) before coarse slicing kicks in for conduction SPBs. This should be at least the maximum frequency for which you plan to evaluate epsilon.'))
-    parser.add_argument('--nspbps_v', type=int, default=2,
+    parser.add_argument('--nspbps_v', '--N_xi_val', type=int, default=2,
                         help=('Number of stochastic pseudobands per valence slice. Must be at least 2.'))
-    parser.add_argument('--nspbps_c', type=int, default=2,
+    parser.add_argument('--nspbps_c', '--N_xi_cond',  type=int, default=2,
                         help=('Number of stochastic pseudobands per conduction slice. Must be at least 2.'))
-    parser.add_argument('--copydirectly', default=True,
-                        help=('Direct copying for protected bands. If False, then copying is done in chunks to limit memory usage. Set to False is you have a large number of protected bands.'))
-    parser.add_argument('--verbosity', type=int, default=0,
+    parser.add_argument('--verbosity', type=int, default=2,
                         help='Set verbosity level')
     parser.add_argument('--single_band', default=False, action='store_true',
                         help='Use a single band instead of a stochastic combination')
