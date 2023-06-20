@@ -19,7 +19,7 @@
 
 import numpy as np
 from scipy.optimize import minimize_scalar, fsolve, Bounds
-
+import warnings
 
 # Constants based on 3D free electron gas density of states
 C = 1 / (12 * np.pi**8) # atomic units
@@ -64,21 +64,22 @@ def Loss(beta, E0=1, Emax=10, nspbps=1, nslice=10):
 def optimize(E0=1, Emax=10, nspbps=1, nslice=10):
     
     dE = Emax - E0
-
-    print('Warning: Scipy will print lots of stuff :)') 
     
-    min_dim = fsolve(lambda x: B * x * np.sqrt(E0 + x/2) - 1, 4)
-    
-    low = max(fsolve(lambda x: alpha(x, E0, Emax, nspbps, nslice)*np.exp(x) 
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        
+        min_dim = fsolve(lambda x: B * x * np.sqrt(E0 + x/2) - 1, 4)
+        low = max(fsolve(lambda x: alpha(x, E0, Emax, nspbps, nslice)*np.exp(x) 
                      - max(min_dim), .2*np.ones(3), maxfev=1000))
-    high = max(fsolve(lambda x: B * w(x, nslice, E0, Emax, nspbps, nslice) 
+        high = max(fsolve(lambda x: B * w(x, nslice, E0, Emax, nspbps, nslice) 
                       * np.sqrt(Ebar(x, nslice, E0, Emax, nspbps, nslice)) - 1,
                       .2*np.ones(3), maxfev=1000))
    
-    tol=1e-9
-    bnds = (tol, 1-tol)
+        tol=1e-9
+        bnds = (tol, 1-tol)
+        
+        result = minimize_scalar(Loss, args=(E0, Emax, nspbps, nslice), bounds=bnds, method='bounded')
     
-    result = minimize_scalar(Loss, args=(E0, Emax, nspbps, nslice), bounds=bnds, method='bounded')
     print(f'minimization results: \n{result}')
     print(f'alpha: {alpha(result.x, E0, Emax, nspbps, nslice)}')
     
