@@ -4,7 +4,7 @@
 
 ## **Purpose**
 
-This script massively compresses the mean-field wavefunciton to speed up GW calculations based on sum-over-bands formalisms. It reduced the scaling of the GW code, speedup up the calculation of the dieleectric matrix and self-energy often by 1-3 orders of magnitude or more, and eliminates traditional band-truncation convergence parameters. 
+This script massively compresses the mean-field wavefunciton to speed up GW calculations based on sum-over-bands formalisms. It reduces the scaling of the GW code, speeds-up the calculation of the dielectric matrix and self-energy by 1-3 orders of magnitude or more, and eliminates traditional band-truncation convergence parameters. 
 
 ## **How It Works**
 
