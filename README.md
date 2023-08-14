@@ -2,6 +2,8 @@
 
 *Altman A. R., Kundu S., da Jornada F. H., "Mixed Stochastic-Deterministic Approach For Many-Body Perturbation Theory Calculations" (2023).*
 
+Contact: aaronalt [at] stanford [dot] edu
+
 ## **Purpose**
 
 This script massively compresses the mean-field wavefunciton to speed up GW calculations based on sum-over-bands formalisms. It reduces the scaling of the GW code, speeds-up the calculation of the dielectric matrix and self-energy by 1-3 orders of magnitude or more, and eliminates traditional band-truncation convergence parameters. 
